@@ -35,13 +35,14 @@
   <PropertyGroup>
     <StartupObject>SharpBox.CLI.Program</StartupObject>
   </PropertyGroup>
+  <PropertyGroup>
+    <SignAssembly>false</SignAssembly>
+  </PropertyGroup>
+  <PropertyGroup>
+    <AssemblyOriginatorKeyFile>
+    </AssemblyOriginatorKeyFile>
+  </PropertyGroup>
   <ItemGroup>
-    <Reference Include="BinaryTools">
-      <HintPath>..\..\BinaryTools\BinaryTools\bin\Debug\v4.5\BinaryTools.dll</HintPath>
-    </Reference>
-    <Reference Include="BinaryTools.Core.Extensions">
-      <HintPath>..\..\BinaryTools\BinaryTools.Core.Extensions\bin\Debug\v4.5\BinaryTools.Core.Extensions.dll</HintPath>
-    </Reference>
     <Reference Include="EasyHook, Version=2.7.6789.0, Culture=neutral, PublicKeyToken=4b580fca19d0b0c5, processorArchitecture=MSIL">
       <HintPath>..\packages\EasyHook.2.7.6789\lib\net40\EasyHook.dll</HintPath>
     </Reference>
@@ -85,9 +86,9 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\SharpBox.Core\SharpBox.Core.csproj">
-      <Project>{5c1701d9-5eeb-41aa-b91f-2b23768b2135}</Project>
-      <Name>SharpBox.Core</Name>
+    <ProjectReference Include="..\SharpBox.Remote\SharpBox.Remote.csproj">
+      <Project>{647ffec2-ab5f-4abd-99bf-752cfb10694a}</Project>
+      <Name>SharpBox.Remote</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

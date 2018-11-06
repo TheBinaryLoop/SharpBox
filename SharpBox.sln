@@ -5,7 +5,7 @@ VisualStudioVersion = 15.0.28010.2041
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpBox.CLI", "SharpBox.CLI\SharpBox.CLI.csproj", "{5B4D7603-220D-475E-BC0C-66991D8A81D1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpBox.Core", "SharpBox.Core\SharpBox.Core.csproj", "{5C1701D9-5EEB-41AA-B91F-2B23768B2135}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpBox.Remote", "SharpBox.Remote\SharpBox.Remote.csproj", "{647FFEC2-AB5F-4ABD-99BF-752CFB10694A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,10 +17,10 @@ Global
 		{5B4D7603-220D-475E-BC0C-66991D8A81D1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5B4D7603-220D-475E-BC0C-66991D8A81D1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5B4D7603-220D-475E-BC0C-66991D8A81D1}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5C1701D9-5EEB-41AA-B91F-2B23768B2135}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5C1701D9-5EEB-41AA-B91F-2B23768B2135}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5C1701D9-5EEB-41AA-B91F-2B23768B2135}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5C1701D9-5EEB-41AA-B91F-2B23768B2135}.Release|Any CPU.Build.0 = Release|Any CPU
+		{647FFEC2-AB5F-4ABD-99BF-752CFB10694A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{647FFEC2-AB5F-4ABD-99BF-752CFB10694A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{647FFEC2-AB5F-4ABD-99BF-752CFB10694A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{647FFEC2-AB5F-4ABD-99BF-752CFB10694A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
