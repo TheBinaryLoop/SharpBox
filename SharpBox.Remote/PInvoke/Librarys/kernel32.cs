@@ -19,25 +19,42 @@ namespace SharpBox.Remote.PInvoke.Librarys
             [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
             IntPtr templateFile);
 
-        [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
-        public static extern IntPtr CreateFileA(
-             [MarshalAs(UnmanagedType.LPStr)] string filename,
-             [MarshalAs(UnmanagedType.U4)] FileAccess access,
-             [MarshalAs(UnmanagedType.U4)] FileShare share,
-             IntPtr securityAttributes,
-             [MarshalAs(UnmanagedType.U4)] FileMode creationDisposition,
-             [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
-             IntPtr templateFile);
+        //[DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
+        //public static extern IntPtr CreateFileA(
+        //     [MarshalAs(UnmanagedType.LPStr)] string filename,
+        //     [MarshalAs(UnmanagedType.U4)] FileAccess access,
+        //     [MarshalAs(UnmanagedType.U4)] FileShare share,
+        //     IntPtr securityAttributes,
+        //     [MarshalAs(UnmanagedType.U4)] FileMode creationDisposition,
+        //     [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
+        //     IntPtr templateFile);
 
-        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        public static extern IntPtr CreateFileW(
-             [MarshalAs(UnmanagedType.LPWStr)] string filename,
-             [MarshalAs(UnmanagedType.U4)] FileAccess access,
-             [MarshalAs(UnmanagedType.U4)] FileShare share,
-             IntPtr securityAttributes,
-             [MarshalAs(UnmanagedType.U4)] FileMode creationDisposition,
-             [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
-             IntPtr templateFile);
+        //[DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        //public static extern IntPtr CreateFileW(
+        //     [MarshalAs(UnmanagedType.LPWStr)] string filename,
+        //     [MarshalAs(UnmanagedType.U4)] FileAccess access,
+        //     [MarshalAs(UnmanagedType.U4)] FileShare share,
+        //     IntPtr securityAttributes,
+        //     [MarshalAs(UnmanagedType.U4)] FileMode creationDisposition,
+        //     [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
+        //     IntPtr templateFile);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        public static extern bool CreateProcess(
+            string lpApplicationName,
+            string lpCommandLine,
+            ref SECURITY_ATTRIBUTES lpProcessAttributes,
+            ref SECURITY_ATTRIBUTES lpThreadAttributes,
+            bool bInheritHandles,
+            uint dwCreationFlags,
+            IntPtr lpEnvironment,
+            string lpCurrentDirectory,
+            [In] ref STARTUPINFO lpStartupInfo,
+            out PROCESS_INFORMATION lpProcessInformation);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool DeleteFile(string lpFileName);
 
         [DllImport("kernel32.dll", SetLastError = true, CallingConvention = CallingConvention.StdCall)]
         public static extern bool ReadFile(
@@ -83,6 +100,11 @@ namespace SharpBox.Remote.PInvoke.Librarys
             FINDEX_SEARCH_OPS fSearchOp,
             IntPtr lpSearchFilter,
             int dwAdditionalFlags);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        public static extern bool FindNextFile(
+            IntPtr hFindFile,
+            out WIN32_FIND_DATA lpFindFileData);
 
     }
 }

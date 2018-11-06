@@ -21,16 +21,35 @@ namespace SharpBox.CLI
     {
         private const string ReleaseChannel = "stable";
 
-        private const string targetExe = @"C:\Program Files\7-Zip\7zFM.exe";
-
-        static String ChannelName = null;
+        //private const string targetExe = @"C:\Program Files\7-Zip\7zFM.exe";
+        //private const string targetExe = @"C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\Common7\IDE\devenv.exe";
 
         static void Main(string[] args)
         {
+            string targetExe = null;
+
+            // Will contain the name of the IPC server channel
+            string channelName = null;
+
             InitGUI();
 
+            Console.WriteLine();
+
+            if (String.IsNullOrEmpty(args[0]))
+            {
+                Console.WriteLine("Missing argument: Target Executable");
+                return;
+            }
+
+            if (!File.Exists(args[0]))
+            {
+                Console.WriteLine($"'{args[0]}' is not a valid file");
+                return;
+            }
+            targetExe = args[0];
+
             // Create the IPC server using the SharpBox.SharpBoxInterface class as a singleton
-            RemoteHooking.IpcCreateServer<SharpBoxInterface>(ref ChannelName, WellKnownObjectMode.Singleton);
+            RemoteHooking.IpcCreateServer<SharpBoxInterface>(ref channelName, WellKnownObjectMode.Singleton);
             
             // Get the full path to the assembly we want to inject into the target process
             string injectionLibrary = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "SharpBox.Remote.dll");
@@ -47,7 +66,7 @@ namespace SharpBox.CLI
                     injectionLibrary,   // 32-bit library to inject (if target is 32-bit)
                     injectionLibrary,   // 64-bit library to inject (if target is 64-bit)
                     out Int32 OutProcessId,      // retrieve the newly created process ID
-                    ChannelName,         // the parameters to pass into injected library
+                    channelName,         // the parameters to pass into injected library
                     targetExe
                 );
 

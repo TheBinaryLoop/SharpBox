@@ -40,6 +40,8 @@ namespace SharpBox.Remote
 
             // Install hooks
 
+            #region FileSystem
+
             // CreateFile https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx
             var createFileHookW = LocalHook.Create(
                 LocalHook.GetProcAddress("kernel32.dll", "CreateFileW"),
@@ -54,6 +56,16 @@ namespace SharpBox.Remote
             var readFileHook = LocalHook.Create(
                 LocalHook.GetProcAddress("kernel32.dll", "ReadFile"),
                 new ReadFile_Delegate(ReadFile_Hook),
+                this);
+
+            // DeleteFile
+            var deleteFileHookA = LocalHook.Create(
+                LocalHook.GetProcAddress("kernel32.dll", "DeleteFileA"),
+                new DeleteFile_Delegate(DeleteFile_Hooked),
+                this);
+            var deleteFileHookW = LocalHook.Create(
+                LocalHook.GetProcAddress("kernel32.dll", "DeleteFileW"),
+                new DeleteFile_Delegate(DeleteFile_Hooked),
                 this);
 
             // WriteFile https://msdn.microsoft.com/en-us/library/windows/desktop/aa365747(v=vs.85).aspx
@@ -82,17 +94,37 @@ namespace SharpBox.Remote
                 new FindFirstFileExW_Delegate(FindFirstFileExW_Hooked),
                 this);
 
+            // FindNextFile
+            var findNextFileHookA = LocalHook.Create(
+                LocalHook.GetProcAddress("kernel32.dll", "FindNextFileA"),
+                new FindNextFile_Delegate(FindNextFile_Hooked),
+                this);
+            var findNextFileHookW = LocalHook.Create(
+                LocalHook.GetProcAddress("kernel32.dll", "FindNextFileW"),
+                new FindNextFile_Delegate(FindNextFile_Hooked),
+                this);
+
+            #endregion
+
+            #region FileSystem
+
             // Activate hooks on all threads except the current thread
-            createFileHookW.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             createFileHookA.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+            createFileHookW.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+            deleteFileHookA.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+            deleteFileHookW.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             readFileHook.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             writeFileHook.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             findFirstFileHookA.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             findFirstFileHookW.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             findFirstFileExHookA.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             findFirstFileExHookW.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+            findNextFileHookA.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+            findNextFileHookW.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
 
-            Interface.ReportMessage("CreateFile, ReadFile, WriteFile, FindFirstFile and FindFirstFileEx hooks installed");
+            #endregion
+
+            Interface.ReportMessage("CreateFile, DeleteFile, ReadFile, WriteFile, FindFirstFile FindFirstFileEx and FindNextFile hooks installed");
 
             // Wake up the process (required if using RemoteHooking.CreateAndInject)
             RemoteHooking.WakeUpProcess();
@@ -129,14 +161,22 @@ namespace SharpBox.Remote
             }
 
             // Remove hooks
-            createFileHookW.Dispose();
+            #region FileSystem
+
             createFileHookA.Dispose();
+            createFileHookW.Dispose();
+            deleteFileHookA.Dispose();
+            deleteFileHookW.Dispose();
             readFileHook.Dispose();
             writeFileHook.Dispose();
             findFirstFileHookA.Dispose();
             findFirstFileHookW.Dispose();
             findFirstFileExHookA.Dispose();
             findFirstFileExHookW.Dispose();
+            findNextFileHookA.Dispose();
+            findNextFileHookW.Dispose();
+
+            #endregion
 
             // Finalise cleanup of hooks
             LocalHook.Release();
@@ -202,7 +242,7 @@ namespace SharpBox.Remote
             IntPtr templateFile)
         {
             bool block = false;
-            
+
             try
             {
                 lock (this._messageQueue)
@@ -267,6 +307,34 @@ namespace SharpBox.Remote
                 creationDisposition,
                 flagsAndAttributes,
                 templateFile);
+        }
+
+        #endregion
+
+        #region DeleteFile Hook
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Unicode, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        delegate bool DeleteFile_Delegate(string lpFileName);
+
+        bool DeleteFile_Hooked(string lpFileName)
+        {
+            try
+            {
+                lock (this._messageQueue)
+                {
+                    this._messageQueue.Enqueue(
+                        string.Format("[{0}:{1}]: DELETE \"{2}\"",
+                        RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
+                        , lpFileName));
+                }
+            }
+            catch
+            {
+                // swallow exceptions so that any issues caused by this code do not crash target process
+            }
+
+            return Kernel32.DeleteFile(lpFileName);
         }
 
         #endregion
@@ -474,6 +542,72 @@ namespace SharpBox.Remote
         }
 
         #endregion
+
+        #endregion
+
+        #region FindNextFile Hook
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Auto, SetLastError = true)]
+        delegate bool FindNextFile_Delegate(
+            IntPtr hFindFile,
+            out WIN32_FIND_DATA lpFindFileData);
+
+        bool FindNextFile_Hooked(
+            IntPtr hFindFile,
+            out WIN32_FIND_DATA lpFindFileData)
+        {
+            bool result = false;
+
+            // Call original first so we have a value for lpFindFileData
+            result = Kernel32.FindNextFile(hFindFile, out lpFindFileData);
+
+            try
+            {
+                //while (lpFindFileData.cFileName.Contains("Program"))
+                //{
+                //    lock (this._messageQueue)
+                //    {
+                //        if (this._messageQueue.Count < 1000)
+                //        {
+                //            // Retrieve filename from the file handle
+                //            StringBuilder filename = new StringBuilder(255);
+                //            GetFinalPathNameByHandle(hFindFile, filename, 255, 0);
+
+
+                //            // Add message to send to FileMonitor
+                //            this._messageQueue.Enqueue(
+                //                string.Format("[{0}:{1}]: FINDNEXTFILE (Filename: {2}) \"{3}\" BLOCKED",
+                //                RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
+                //                , lpFindFileData.cFileName, filename));
+
+                //            // Skipp the current file
+                //            result = Kernel32.FindNextFile(hFindFile, out lpFindFileData);
+                //        }
+                //    }
+                lock (this._messageQueue)
+                {
+                    if (this._messageQueue.Count < 1000)
+                    {
+                        // Retrieve filename from the file handle
+                        StringBuilder filename = new StringBuilder(255);
+                        GetFinalPathNameByHandle(hFindFile, filename, 255, 0);
+
+                        // Add message to send to FileMonitor
+                        this._messageQueue.Enqueue(
+                            string.Format("[{0}:{1}]: FINDNEXTFILE (Filename: {2}) \"{3}\"",
+                            RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
+                            , lpFindFileData.cFileName, filename));
+                    }
+                }
+                //}
+            }
+            catch
+            {
+                // swallow exceptions so that any issues caused by this code do not crash target process
+            }
+
+            return result;
+        }
 
         #endregion
 
