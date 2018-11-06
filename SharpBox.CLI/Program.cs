@@ -47,7 +47,8 @@ namespace SharpBox.CLI
                     injectionLibrary,   // 32-bit library to inject (if target is 32-bit)
                     injectionLibrary,   // 64-bit library to inject (if target is 64-bit)
                     out Int32 OutProcessId,      // retrieve the newly created process ID
-                    ChannelName         // the parameters to pass into injected library
+                    ChannelName,         // the parameters to pass into injected library
+                    targetExe
                 );
 
                 Console.ReadLine();

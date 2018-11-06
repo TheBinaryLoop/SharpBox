@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 
 namespace SharpBox.Remote
@@ -8,6 +9,8 @@ namespace SharpBox.Remote
     /// </summary>
     public class SharpBoxInterface : MarshalByRefObject
     {
+        public String Executable = "";
+
         public void IsInstalled(Int32 InClientPID)
         {
             Console.WriteLine($"SharpBox has injected SharpBox.Remote into process {InClientPID}.\r\n");
@@ -51,7 +54,8 @@ namespace SharpBox.Remote
             Console.CursorVisible = false;
 
             var chars = "\\|/-";
-            Console.SetCursorPosition(Console.WindowWidth - 1, oldTop - 1);
+            //Console.SetCursorPosition(Console.WindowWidth - 1, oldTop - 1);
+            Console.SetCursorPosition(0, oldTop);
             Console.Write(chars[count++ % chars.Length]);
 
             Console.SetCursorPosition(oldLeft, oldTop);
