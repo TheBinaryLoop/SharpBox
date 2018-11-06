@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace SharpBox.CLI
+namespace SharpBox.Core
 {
     public class SharpBoxInterface : MarshalByRefObject
     {
