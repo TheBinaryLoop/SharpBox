@@ -32,7 +32,16 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>SharpBox.CLI.Program</StartupObject>
+  </PropertyGroup>
   <ItemGroup>
+    <Reference Include="BinaryTools">
+      <HintPath>..\..\BinaryTools\BinaryTools\bin\Debug\v4.5\BinaryTools.dll</HintPath>
+    </Reference>
+    <Reference Include="BinaryTools.Core.Extensions">
+      <HintPath>..\..\BinaryTools\BinaryTools.Core.Extensions\bin\Debug\v4.5\BinaryTools.Core.Extensions.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -45,6 +54,7 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SharpBoxInterface.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".editorconfig" />
