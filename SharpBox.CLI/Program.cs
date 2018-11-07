@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.Remoting;
 using EasyHook;
@@ -31,7 +32,7 @@ namespace SharpBox.CLI
             // Will contain the name of the IPC server channel
             string channelName = null;
 
-            InitGUI();
+            if (!Console.IsOutputRedirected) InitGUI();
 
             Console.WriteLine();
 
@@ -60,14 +61,16 @@ namespace SharpBox.CLI
 
                 RemoteHooking.CreateAndInject(
                     targetExe,          // executable to run
-                    "",                 // command line arguments for target
+                    string.Join(" ", args.Skip(1).ToArray()),                 // command line arguments for target
                     0,                  // additional process creation flags to pass to CreateProcess
                     InjectionOptions.DoNotRequireStrongName, // allow injectionLibrary to be unsigned
                     injectionLibrary,   // 32-bit library to inject (if target is 32-bit)
                     injectionLibrary,   // 64-bit library to inject (if target is 64-bit)
                     out Int32 OutProcessId,      // retrieve the newly created process ID
                     channelName,         // the parameters to pass into injected library
-                    targetExe
+                    targetExe,
+                    injectionLibrary,
+                    injectionLibrary
                 );
 
                 Console.ReadLine();

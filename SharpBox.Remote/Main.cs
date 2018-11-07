@@ -23,7 +23,7 @@ namespace SharpBox.Remote
         Queue<string> _messageQueue = new Queue<string>();
 
 
-        public Main(RemoteHooking.IContext InContext, String InChannelName, String InExecutableName)
+        public Main(RemoteHooking.IContext InContext, String InChannelName, String InExecutableName, String InLibraryPath_x86, String InLibraryPath_x64)
         {
             // connect to host...
             Interface = RemoteHooking.IpcConnectClient<SharpBoxInterface>(InChannelName);
@@ -32,9 +32,12 @@ namespace SharpBox.Remote
             Interface.Ping();
 
             Interface.Executable = InExecutableName;
+            Interface.ChannelName = InChannelName;
+            Interface.InjectionLibrary_x86 = InLibraryPath_x86;
+            Interface.InjectionLibrary_x64 = InLibraryPath_x64;
         }
 
-        public void Run(RemoteHooking.IContext InContext, String InChannelName, String InExecutableName)
+        public void Run(RemoteHooking.IContext InContext, String InChannelName, String InExecutableName, String InLibraryPath_x86, String InLibraryPath_x64)
         {
             Interface.IsInstalled(RemoteHooking.GetCurrentProcessId());
 
@@ -104,6 +107,29 @@ namespace SharpBox.Remote
                 new FindNextFile_Delegate(FindNextFile_Hooked),
                 this);
 
+            // PathFileExists
+            var pathFileExistsA = LocalHook.Create(
+                LocalHook.GetProcAddress("shlwapi.dll", "PathFileExistsA"),
+                new PathFileExists_Delegate(PathFileExists_Hooked),
+                this);
+            var pathFileExistsW = LocalHook.Create(
+                LocalHook.GetProcAddress("shlwapi.dll", "PathFileExistsW"),
+                new PathFileExists_Delegate(PathFileExists_Hooked),
+                this);
+
+            #endregion
+            #region Process
+
+            // CreateProcess
+            //var createProcessA = LocalHook.Create(
+            //    LocalHook.GetProcAddress("kernel32.dll", "CreateProcessA"),
+            //    new CreateProcess_Delegate(CreateProcess_Hooked),
+            //    this);
+            //var createProcessW = LocalHook.Create(
+            //    LocalHook.GetProcAddress("kernel32.dll", "CreateProcessW"),
+            //    new CreateProcess_Delegate(CreateProcess_Hooked),
+            //    this);
+
             #endregion
 
             #region FileSystem
@@ -121,10 +147,19 @@ namespace SharpBox.Remote
             findFirstFileExHookW.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             findNextFileHookA.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             findNextFileHookW.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+            pathFileExistsA.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+            pathFileExistsW.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+
+            #endregion
+            #region Process
+
+            //createProcessA.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+            //createProcessW.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
 
             #endregion
 
-            Interface.ReportMessage("CreateFile, DeleteFile, ReadFile, WriteFile, FindFirstFile FindFirstFileEx and FindNextFile hooks installed");
+            //Interface.ReportMessage("CreateFile, CreateProcess, DeleteFile, ReadFile, WriteFile, FindFirstFile FindFirstFileEx and FindNextFile hooks installed");
+            Interface.ReportMessage("CreateFile, DeleteFile, ReadFile, WriteFile, FindFirstFile FindFirstFileEx, FindNextFile and PathFileExists hooks installed");
 
             // Wake up the process (required if using RemoteHooking.CreateAndInject)
             RemoteHooking.WakeUpProcess();
@@ -177,6 +212,12 @@ namespace SharpBox.Remote
             findNextFileHookW.Dispose();
 
             #endregion
+            #region Process
+
+            //createProcessA.Dispose();
+            //createProcessW.Dispose();
+
+            #endregion
 
             // Finalise cleanup of hooks
             LocalHook.Release();
@@ -214,7 +255,7 @@ namespace SharpBox.Remote
                     SetLastError = true)]
         delegate IntPtr CreateFile_Delegate(
                     [MarshalAs(UnmanagedType.LPTStr)] string filename,
-                    [MarshalAs(UnmanagedType.U4)] FileAccess access,
+                    [MarshalAs(UnmanagedType.U4)] PInvoke.Enums.FileAccess access,
                     [MarshalAs(UnmanagedType.U4)] FileShare share,
                     IntPtr securityAttributes, // optional SECURITY_ATTRIBUTES struct or IntPtr.Zero
                     [MarshalAs(UnmanagedType.U4)] FileMode creationDisposition,
@@ -234,7 +275,7 @@ namespace SharpBox.Remote
         /// <returns></returns>
         IntPtr CreateFile_Hook(
             [MarshalAs(UnmanagedType.LPTStr)] string filename,
-            [MarshalAs(UnmanagedType.U4)] FileAccess access,
+            [MarshalAs(UnmanagedType.U4)] PInvoke.Enums.FileAccess access,
             [MarshalAs(UnmanagedType.U4)] FileShare share,
             IntPtr securityAttributes, // optional SECURITY_ATTRIBUTES struct or IntPtr.Zero
             [MarshalAs(UnmanagedType.U4)] FileMode creationDisposition,
@@ -273,9 +314,16 @@ namespace SharpBox.Remote
                         }
 
                         //block = Interface.ShouldBlock(filename, creationDisposition);
-
                         // Add message to send to SharpBox
-                        if (block)
+                        if (Interface.ProcessFileRequest(filename, access, creationDisposition, out String redirectedFilename))
+                        {
+                            this._messageQueue.Enqueue(
+                                string.Format("[{0}:{1}]: CREATE ({2}) \"{3}\" REDIRECTED \"{4}\"",
+                                RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
+                                , mode, filename, redirectedFilename));
+                            filename = redirectedFilename;
+                        }
+                        else if (block)
                         {
                             this._messageQueue.Enqueue(
                             string.Format("[{0}:{1}]: CREATE ({2}) \"{3}\" BLOCKED",
@@ -286,9 +334,9 @@ namespace SharpBox.Remote
                         else
                         {
                             this._messageQueue.Enqueue(
-                            string.Format("[{0}:{1}]: CREATE ({2}) \"{3}\"",
+                            string.Format("[{0}:{1}]: CREATE ({2}:{4}) \"{3}\"",
                             RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
-                            , mode, filename));
+                            , mode, filename, access));
                         }
                     }
                 }
@@ -692,6 +740,92 @@ namespace SharpBox.Remote
         }
 
         #endregion
+
+        #endregion
+
+        #region PathFileExists Hook
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Auto, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        delegate bool PathFileExists_Delegate(
+            [MarshalAs(UnmanagedType.LPTStr)]String pszPath);
+
+        bool PathFileExists_Hooked(
+            [MarshalAs(UnmanagedType.LPTStr)]String pszPath)
+        {
+            try
+            {
+                if (Interface.PathFileExists(pszPath, out String redirectedFilename))
+                {
+                    this._messageQueue.Enqueue(
+                                string.Format("[{0}:{1}]: PATHFILEEXISTS \"{2}\" REDIRECTED \"{3}\"",
+                                RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
+                                , pszPath, redirectedFilename));
+                    pszPath = redirectedFilename;
+                }
+
+            }
+            catch
+            {
+                // swallow exceptions so that any issues caused by this code do not crash target process
+            }
+            return Shlwapi.PathFileExists(pszPath);
+        }
+
+        #endregion
+
+        #endregion
+
+        #region Process
+
+        #region CreateProcess Hook
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Auto, SetLastError = true)]
+        delegate bool CreateProcess_Delegate(
+            string lpApplicationName,
+            string lpCommandLine,
+            ref SECURITY_ATTRIBUTES lpProcessAttributes,
+            ref SECURITY_ATTRIBUTES lpThreadAttributes,
+            bool bInheritHandles,
+            uint dwCreationFlags,
+            IntPtr lpEnvironment,
+            string lpCurrentDirectory,
+            [In] ref STARTUPINFO lpStartupInfo,
+            out PROCESS_INFORMATION lpProcessInformation);
+
+        bool CreateProcess_Hooked(
+            string lpApplicationName,
+            string lpCommandLine,
+            ref SECURITY_ATTRIBUTES lpProcessAttributes,
+            ref SECURITY_ATTRIBUTES lpThreadAttributes,
+            bool bInheritHandles,
+            uint dwCreationFlags,
+            IntPtr lpEnvironment,
+            string lpCurrentDirectory,
+            [In] ref STARTUPINFO lpStartupInfo,
+            out PROCESS_INFORMATION lpProcessInformation)
+        {
+            bool result = false;
+            //result = Interface.CaptureProcess(lpApplicationName, lpCommandLine, /*ref lpProcessAttributes, ref lpThreadAttributes,*/ bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory/*, ref lpStartupInfo*/, out lpProcessInformation);
+            result = Kernel32.CreateProcess(lpApplicationName, lpCommandLine, ref lpProcessAttributes, ref lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, ref lpStartupInfo, out lpProcessInformation);
+            try
+            {
+                lock (this._messageQueue)
+                {
+                    this._messageQueue.Enqueue(
+                            string.Format("[{0}:{1}]: CREATE_PROCESS ({2}) \"{3}\" DEBUG_INFO: {4}:{5}",
+                            RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                            lpCommandLine, lpApplicationName, lpProcessInformation.dwProcessId, lpProcessInformation.dwThreadId));
+                }
+            }
+            catch
+            {
+                // swallow exceptions so that any issues caused by this code do not crash target process
+            }
+
+            //return Kernel32.CreateProcess(lpApplicationName, lpCommandLine, ref lpProcessAttributes, ref lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, ref lpStartupInfo, out lpProcessInformation);
+            return result;
+        }
 
         #endregion
 

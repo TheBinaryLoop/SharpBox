@@ -55,10 +55,12 @@
     <Compile Include="Main.cs" />
     <Compile Include="PInvoke\Constants.cs" />
     <Compile Include="PInvoke\Enums\CreationDisposition.cs" />
+    <Compile Include="PInvoke\Enums\FileAccess.cs" />
     <Compile Include="PInvoke\Enums\FINDEX_INFO_LEVELS.cs" />
     <Compile Include="PInvoke\Enums\FINDEX_SEARCH_OPS.cs" />
     <Compile Include="PInvoke\Librarys\Advapi32.cs" />
     <Compile Include="PInvoke\Librarys\Kernel32.cs" />
+    <Compile Include="PInvoke\Librarys\Shlwapi.cs" />
     <Compile Include="PInvoke\Structs\PROCESS_INFORMATION.cs" />
     <Compile Include="PInvoke\Structs\SECURITY_ATTRIBUTES.cs" />
     <Compile Include="PInvoke\Structs\STARTUPINFO.cs" />
