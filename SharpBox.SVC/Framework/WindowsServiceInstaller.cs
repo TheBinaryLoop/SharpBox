@@ -2,6 +2,7 @@
 using System.Collections;
 using System.ComponentModel;
 using System.Configuration.Install;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.ServiceProcess;
@@ -94,7 +95,7 @@ namespace SharpBox.SVC.Framework
         /// Installer class, to use run InstallUtil against this .exe
         /// </summary>
         /// <param name="savedState">The saved state for the installation.</param>
-        public override void Install(System.Collections.IDictionary savedState)
+        public override void Install(IDictionary savedState)
         {
             ConsoleHarness.WriteToConsole(ConsoleColor.White, "Installing service {0}.", Configuration.Name);
 
@@ -118,7 +119,7 @@ namespace SharpBox.SVC.Framework
         /// Removes the counters, then calls the base uninstall.
         /// </summary>
         /// <param name="savedState">The saved state for the installation.</param>
-        public override void Uninstall(System.Collections.IDictionary savedState)
+        public override void Uninstall(IDictionary savedState)
         {
             ConsoleHarness.WriteToConsole(ConsoleColor.White, "Un-Installing service {0}.", Configuration.Name);
 
@@ -142,7 +143,7 @@ namespace SharpBox.SVC.Framework
         /// Rolls back to the state of the counter, and performs the normal rollback.
         /// </summary>
         /// <param name="savedState">The saved state for the installation.</param>
-        public override void Rollback(System.Collections.IDictionary savedState)
+        public override void Rollback(IDictionary savedState)
         {
             ConsoleHarness.WriteToConsole(ConsoleColor.White, "Rolling back service {0}.", Configuration.Name);
 
