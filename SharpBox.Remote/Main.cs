@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -8,6 +9,7 @@ using EasyHook;
 using SharpBox.Remote.PInvoke.Enums;
 using SharpBox.Remote.PInvoke.Librarys;
 using SharpBox.Remote.PInvoke.Structs;
+using SharpBox.Remote.PInvoke.Types;
 
 namespace SharpBox.Remote
 {
@@ -15,13 +17,12 @@ namespace SharpBox.Remote
     {
         static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
 
-        SharpBoxInterface Interface;
+        SharpBoxInterface Interface; // TODO: Replace Interface with NamedPipe/IPC with SharpBox.SVC
 
         /// <summary>
         /// Message queue of all files accessed
         /// </summary>
         Queue<string> _messageQueue = new Queue<string>();
-
 
         public Main(RemoteHooking.IContext InContext, String InChannelName, String InExecutableName, String InLibraryPath_x86, String InLibraryPath_x64)
         {
@@ -131,6 +132,25 @@ namespace SharpBox.Remote
             //    this);
 
             #endregion
+            #region Style
+
+            // SetWindowText
+            //var setWindowTextA = LocalHook.Create(
+            //    LocalHook.GetProcAddress("user32.dll", "SetWindowTextA"),
+            //    new SetWindowTextA_Delegate(SetWindowTextA_Hooked),
+            //    this);
+            //var setWindowTextW = LocalHook.Create(
+            //    LocalHook.GetProcAddress("user32.dll", "SetWindowTextW"),
+            //    new SetWindowTextW_Delegate(SetWindowTextW_Hooked),
+            //    this);
+
+            #endregion
+            #region WinEvent
+
+            // eventObjectNamechange = User32.SetWinEventHook(Constants.EVENT_OBJECT_NAMECHANGE, Constants.EVENT_OBJECT_NAMECHANGE, IntPtr.Zero, WinEventProc_Delegate, (UInt32)RemoteHooking.GetCurrentProcessId(), 0, Constants.WINEVENT_OUTOFCONTEXT);
+
+            #endregion
+
 
             #region FileSystem
 
@@ -157,9 +177,16 @@ namespace SharpBox.Remote
             //createProcessW.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
 
             #endregion
+            #region Style
+
+            //setWindowTextA.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+            //setWindowTextW.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+
+            #endregion
 
             //Interface.ReportMessage("CreateFile, CreateProcess, DeleteFile, ReadFile, WriteFile, FindFirstFile FindFirstFileEx and FindNextFile hooks installed");
-            Interface.ReportMessage("CreateFile, DeleteFile, ReadFile, WriteFile, FindFirstFile FindFirstFileEx, FindNextFile and PathFileExists hooks installed");
+            //Interface.ReportMessage("CreateFile, DeleteFile, FindFirstFile, FindFirstFileEx, FindNextFile PathFileExists, ReadFile, SetWindowText and WriteFile hooks installed");
+            Interface.ReportMessage("CreateFile, DeleteFile, FindFirstFile, FindFirstFileEx, FindNextFile PathFileExists, ReadFile and WriteFile hooks installed");
 
             // Wake up the process (required if using RemoteHooking.CreateAndInject)
             RemoteHooking.WakeUpProcess();
@@ -218,22 +245,22 @@ namespace SharpBox.Remote
             //createProcessW.Dispose();
 
             #endregion
+            #region Style
+
+            //setWindowTextA.Dispose();
+            //setWindowTextW.Dispose();
+
+            #endregion
+            #region WinEvent
+
+            //User32.UnhookWinEvent(eventObjectNamechange);
+
+            #endregion
 
             // Finalise cleanup of hooks
             LocalHook.Release();
         }
 
-        /// <summary>
-        /// P/Invoke to determine the filename from a file handle
-        /// https://msdn.microsoft.com/en-us/library/windows/desktop/aa364962(v=vs.85).aspx
-        /// </summary>
-        /// <param name="hFile"></param>
-        /// <param name="lpszFilePath"></param>
-        /// <param name="cchFilePath"></param>
-        /// <param name="dwFlags"></param>
-        /// <returns></returns>
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        static extern uint GetFinalPathNameByHandle(IntPtr hFile, [MarshalAs(UnmanagedType.LPTStr)] StringBuilder lpszFilePath, uint cchFilePath, uint dwFlags);
 
         #region FileSystem
 
@@ -315,7 +342,7 @@ namespace SharpBox.Remote
 
                         //block = Interface.ShouldBlock(filename, creationDisposition);
                         // Add message to send to SharpBox
-                        if (Interface.ProcessFileRequest(filename, access, creationDisposition, out String redirectedFilename))
+                        if (Interface.ProcessCreateFileRequest(filename, access, creationDisposition, out String redirectedFilename))
                         {
                             this._messageQueue.Enqueue(
                                 string.Format("[{0}:{1}]: CREATE ({2}) \"{3}\" REDIRECTED \"{4}\"",
@@ -371,10 +398,20 @@ namespace SharpBox.Remote
             {
                 lock (this._messageQueue)
                 {
-                    this._messageQueue.Enqueue(
-                        string.Format("[{0}:{1}]: DELETE \"{2}\"",
-                        RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
-                        , lpFileName));
+                    if (Interface.ProcessDeleteFileRequest(lpFileName, out String redirectedFilename))
+                    {
+                        this._messageQueue.Enqueue(
+                           string.Format("[{0}:{1}]: DELETE \"{2}\" REDIRECTED \"{3}\"",
+                           RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
+                           , lpFileName, redirectedFilename));
+                    }
+                    else
+                    {
+                        this._messageQueue.Enqueue(
+                            string.Format("[{0}:{1}]: DELETE \"{2}\"",
+                            RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
+                            , lpFileName));
+                    }
                 }
             }
             catch
@@ -436,13 +473,23 @@ namespace SharpBox.Remote
                     {
                         // Retrieve filename from the file handle
                         StringBuilder filename = new StringBuilder(255);
-                        GetFinalPathNameByHandle(hFile, filename, 255, 0);
-
-                        // Add message to send to FileMonitor
-                        this._messageQueue.Enqueue(
-                            string.Format("[{0}:{1}]: READ ({2} bytes) \"{3}\"",
-                            RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
-                            , lpNumberOfBytesRead, filename));
+                        UInt32 success = Kernel32.GetFinalPathNameByHandle(hFile, filename, 255, 0);
+                        if (success == 0)
+                        {
+                            // Add message to send to SharpBox
+                            this._messageQueue.Enqueue(
+                                string.Format("[{0}:{1}]: READ ({2} bytes) GET_PATH_NAME_ERROR: {3}",
+                                RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
+                                , lpNumberOfBytesRead, Marshal.GetLastWin32Error()));
+                        }
+                        else
+                        {
+                            // Add message to send to SharpBox
+                            this._messageQueue.Enqueue(
+                                string.Format("[{0}:{1}]: READ ({2} bytes) \"{3}\"",
+                                RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
+                                , lpNumberOfBytesRead, filename));
+                        }
                     }
                 }
             }
@@ -505,13 +552,23 @@ namespace SharpBox.Remote
                     {
                         // Retrieve filename from the file handle
                         StringBuilder filename = new StringBuilder(255);
-                        GetFinalPathNameByHandle(hFile, filename, 255, 0);
-
-                        // Add message to send to FileMonitor
-                        this._messageQueue.Enqueue(
+                        UInt32 success = Kernel32.GetFinalPathNameByHandle(hFile, filename, 255, 0);
+                        if (success == 0)
+                        {
+                            // Add message to send to SharpBox
+                            this._messageQueue.Enqueue(
+                            string.Format("[{0}:{1}]: WRITE ({2} bytes) GET_PATH_NAME_ERROR: {3}",
+                            RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
+                            , lpNumberOfBytesWritten, Marshal.GetLastWin32Error()));
+                        }
+                        else
+                        {
+                            // Add message to send to SharpBox
+                            this._messageQueue.Enqueue(
                             string.Format("[{0}:{1}]: WRITE ({2} bytes) \"{3}\"",
                             RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
                             , lpNumberOfBytesWritten, filename));
+                        }
                     }
                 }
             }
@@ -638,7 +695,7 @@ namespace SharpBox.Remote
                     {
                         // Retrieve filename from the file handle
                         StringBuilder filename = new StringBuilder(255);
-                        GetFinalPathNameByHandle(hFindFile, filename, 255, 0);
+                        Kernel32.GetFinalPathNameByHandle(hFindFile, filename, 255, 0);
 
                         // Add message to send to FileMonitor
                         this._messageQueue.Enqueue(
@@ -753,9 +810,10 @@ namespace SharpBox.Remote
         bool PathFileExists_Hooked(
             [MarshalAs(UnmanagedType.LPTStr)]String pszPath)
         {
+            Boolean isDeleted = false;
             try
             {
-                if (Interface.PathFileExists(pszPath, out String redirectedFilename))
+                if (Interface.PathFileExists(pszPath, out String redirectedFilename, out isDeleted))
                 {
                     this._messageQueue.Enqueue(
                                 string.Format("[{0}:{1}]: PATHFILEEXISTS \"{2}\" REDIRECTED \"{3}\"",
@@ -763,13 +821,20 @@ namespace SharpBox.Remote
                                 , pszPath, redirectedFilename));
                     pszPath = redirectedFilename;
                 }
+                else
+                {
+                    this._messageQueue.Enqueue(
+                                string.Format("[{0}:{1}]: PATHFILEEXISTS \"{2}\"",
+                                RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
+                                , pszPath));
+                }
 
             }
             catch
             {
                 // swallow exceptions so that any issues caused by this code do not crash target process
             }
-            return Shlwapi.PathFileExists(pszPath);
+            return isDeleted ? false : Shlwapi.PathFileExists(pszPath);
         }
 
         #endregion
@@ -830,5 +895,127 @@ namespace SharpBox.Remote
         #endregion
 
         #endregion
+
+        #region Style
+
+        #region SetWindowText Hook
+
+        #region SetWindowTextA
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Ansi, SetLastError = true)]
+        delegate bool SetWindowTextA_Delegate(
+            IntPtr hWnd,
+            String lpString);
+
+        bool SetWindowTextA_Hooked(
+            IntPtr hWnd,
+            String lpString)
+        {
+
+            try
+            {
+                //if (hWnd != IntPtr.Zero && !string.IsNullOrEmpty(lpString))
+                //{
+                    lock (this._messageQueue)
+                    {
+                        if (hWnd != IntPtr.Zero && !lpString.StartsWith("~SharpBoxed~"))
+                        {
+                            string newText = $"~SharpBoxed~ {lpString}";
+                            this._messageQueue.Enqueue(
+                                string.Format("[{0}:{1}]: SETWINDOWTEXTA \"{2}\" CHANGED \"{3}\"",
+                                RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                                lpString, newText));
+                            lpString = newText;
+                        }
+                        else
+                        {
+                            this._messageQueue.Enqueue(
+                                string.Format("[{0}:{1}]: SETWINDOWTEXTA \"{2}\"",
+                                RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                                lpString));
+                        }
+                    }
+                //}
+            }
+            catch
+            {
+                // swallow exceptions so that any issues caused by this code do not crash target process
+            }
+            return User32.SetWindowTextA(hWnd, lpString);
+        }
+
+        #endregion
+
+        #region SetWindowTextW
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Unicode, SetLastError = true)]
+        delegate bool SetWindowTextW_Delegate(
+            IntPtr hWnd,
+            String lpString);
+
+        bool SetWindowTextW_Hooked(
+            IntPtr hWnd,
+            String lpString)
+        {
+
+            try
+            {
+                if (Process.GetCurrentProcess().MainWindowHandle != IntPtr.Zero && !Process.GetCurrentProcess().MainWindowTitle.StartsWith("~SharpBoxed~"))
+                {
+                    User32.SetWindowTextW(Process.GetCurrentProcess().MainWindowHandle, $"~SharpBoxed~ {Process.GetCurrentProcess().MainWindowTitle}");
+                }
+                //if (hWnd != IntPtr.Zero && !string.IsNullOrEmpty(lpString))
+                //{
+                    lock (this._messageQueue)
+                    {
+                        if (hWnd != IntPtr.Zero && !lpString.StartsWith("~SharpBoxed~"))
+                        {
+                            string newText = $"~SharpBoxed~ {lpString}";
+                            this._messageQueue.Enqueue(
+                                string.Format("[{0}:{1}]: SETWINDOWTEXTW \"{2}\" CHANGED \"{3}\"",
+                                RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                                lpString, newText));
+                            lpString = newText;
+                        }
+                        else
+                        {
+                            this._messageQueue.Enqueue(
+                                string.Format("[{0}:{1}]: SETWINDOWTEXTW \"{2}\"",
+                                RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                                lpString));
+                        }
+                    }
+                //}
+            }
+            catch
+            {
+                // swallow exceptions so that any issues caused by this code do not crash target process
+            }
+            return User32.SetWindowTextW(hWnd, lpString);
+        }
+
+        #endregion
+
+        #endregion
+
+        #endregion
+
+        #region WinEvent
+
+        readonly WinEventDelegate WinEventProc_Delegate = new WinEventDelegate(WinEventProc);
+
+        static void WinEventProc(IntPtr hWinEventHook, UInt32 eventType, IntPtr hWnd, Int32 idObject, Int32 idChild, UInt32 dwEventThread, UInt32 dwmsEventTime)
+        {
+            SharpBoxInterface Interface = (SharpBoxInterface)HookRuntimeInfo.Callback;
+            // filter out non-HWND namechanges... (eg. items within a listbox)
+            if (idObject != 0 || idChild != 0)
+            {
+                return;
+            }
+            Interface.ReportMessage(string.Format("Text of hwnd changed {0:x8}", hWnd.ToInt32()));
+        }
+
+        #endregion
+
     }
 }

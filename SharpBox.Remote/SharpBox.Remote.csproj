@@ -58,14 +58,19 @@
     <Compile Include="PInvoke\Enums\FileAccess.cs" />
     <Compile Include="PInvoke\Enums\FINDEX_INFO_LEVELS.cs" />
     <Compile Include="PInvoke\Enums\FINDEX_SEARCH_OPS.cs" />
+    <Compile Include="PInvoke\Enums\NTSTATUS.cs" />
+    <Compile Include="PInvoke\Enums\SYSTEM_INFORMATION_CLASS.cs" />
     <Compile Include="PInvoke\Librarys\Advapi32.cs" />
     <Compile Include="PInvoke\Librarys\Kernel32.cs" />
+    <Compile Include="PInvoke\Librarys\Ntdll.cs" />
     <Compile Include="PInvoke\Librarys\Shlwapi.cs" />
+    <Compile Include="PInvoke\Librarys\User32.cs" />
     <Compile Include="PInvoke\Structs\PROCESS_INFORMATION.cs" />
     <Compile Include="PInvoke\Structs\SECURITY_ATTRIBUTES.cs" />
     <Compile Include="PInvoke\Structs\STARTUPINFO.cs" />
     <Compile Include="PInvoke\Structs\STARTUPINFOEX.cs" />
     <Compile Include="PInvoke\Structs\WIN32_FIND_DATA.cs" />
+    <Compile Include="PInvoke\Types\WinEventDelegate.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SharpBoxInterface.cs" />
   </ItemGroup>

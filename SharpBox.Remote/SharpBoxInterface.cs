@@ -15,7 +15,8 @@ namespace SharpBox.Remote
         public String ChannelName = null;
         public String InjectionLibrary_x86 = null;
         public String InjectionLibrary_x64 = null;
-        public readonly String SandboxDrivesPath = @"D:\SharpBox\Drives";
+        public readonly String SandboxRootPath = @"D:\SharpBox";
+        public String SandboxName = "DefaultBox";
 
         public void IsInstalled(Int32 InClientPID)
         {
@@ -28,9 +29,10 @@ namespace SharpBox.Remote
         /// <param name="fileNames"></param>
         public void ReportMessages(string[] messages)
         {
-            for (int i = 0; i < messages.Length; i++)
+            foreach (string message in messages)
             {
-                Console.WriteLine(messages[i]);
+                //if (!message.Contains("SETWINDOWTEXT")) continue;
+                Console.WriteLine(message);
             }
         }
 
@@ -78,7 +80,7 @@ namespace SharpBox.Remote
             return false;
         }
 
-        public bool ProcessFileRequest(String filename, PInvoke.Enums.FileAccess access, FileMode creationDisposition, out String redirectedFilename)
+        public bool ProcessCreateFileRequest(String filename, PInvoke.Enums.FileAccess access, FileMode creationDisposition, out String redirectedFilename)
         {
             bool redirect = false;
             string prefix = string.Empty;
@@ -91,7 +93,7 @@ namespace SharpBox.Remote
 
             // Check FileMode
             //if (creationDisposition == FileMode.Append || creationDisposition == FileMode.Create || creationDisposition == FileMode.CreateNew || creationDisposition == FileMode.OpenOrCreate || creationDisposition == FileMode.Truncate)
-            //if (creationDisposition != FileMode.Open) redirect = true; // FileMode.OpenOrCreate needs further checking
+            if (creationDisposition != FileMode.Open) redirect = true; // FileMode.OpenOrCreate needs further checking
 
             // Check if we need a special prefix
             if (filename.StartsWith(@"\\?\"))
@@ -105,7 +107,7 @@ namespace SharpBox.Remote
             }
             try
             {
-                redirectedRealFilename = Path.Combine(SandboxDrivesPath, realFilename.Remove(1, 1));
+                redirectedRealFilename = Path.Combine(SandboxRootPath, SandboxName, "Drives", realFilename.Remove(1, 1));
                 redirectedFilename = prefix + redirectedRealFilename;
 
                 if (File.Exists(redirectedRealFilename)) redirect = true;
@@ -117,10 +119,11 @@ namespace SharpBox.Remote
                     {
                         File.Copy(realFilename, redirectedRealFilename);
                     }
-                    else if (File.Exists(realFilename) && File.Exists(redirectedRealFilename))
-                    {
-                        File.Copy(realFilename, redirectedRealFilename, File.GetLastWriteTimeUtc(realFilename) > File.GetLastWriteTimeUtc(redirectedRealFilename));
-                    }
+                    if (File.Exists(Path.GetFileNameWithoutExtension(redirectedRealFilename) + ".sbdeleted")) File.Delete(Path.GetFileNameWithoutExtension(redirectedRealFilename) + ".sbdeleted");
+                    //else if (File.Exists(realFilename) && File.Exists(redirectedRealFilename))
+                    //{
+                    //    File.Copy(realFilename, redirectedRealFilename, File.GetLastWriteTimeUtc(realFilename) > File.GetLastWriteTimeUtc(redirectedRealFilename));
+                    //}
 
                 }
             }
@@ -132,9 +135,10 @@ namespace SharpBox.Remote
             return redirect;
         }
 
-        public bool PathFileExists(String pszPath, out String redirectedFilename)
+        public bool PathFileExists(String pszPath, out String redirectedFilename, out Boolean isDeleted)
         {
             bool redirect = false;
+            isDeleted = false;
             string prefix = string.Empty;
             string realFilename = string.Empty;
             redirectedFilename = string.Empty;
@@ -152,10 +156,44 @@ namespace SharpBox.Remote
 
             try
             {
-                redirectedRealFilename = Path.Combine(SandboxDrivesPath, realFilename.Remove(1, 1));
+                redirectedRealFilename = Path.Combine(SandboxRootPath, SandboxName, "Drives", realFilename.Remove(1, 1));
                 redirectedFilename = prefix + redirectedRealFilename;
 
                 if (File.Exists(redirectedRealFilename)) redirect = true;
+                if (File.Exists(Path.GetFileNameWithoutExtension(redirectedRealFilename) + ".sbdeleted")) isDeleted = true;
+            }
+            catch (Exception ex)
+            {
+                ReportException(ex);
+                return false;
+            }
+            return redirect;
+        }
+
+        public bool ProcessDeleteFileRequest(String lpFileName, out String redirectedFilename)
+        {
+            bool redirect = false;
+            string prefix = string.Empty;
+            string realFilename = string.Empty;
+            redirectedFilename = string.Empty;
+            string redirectedRealFilename = string.Empty;
+
+            if (lpFileName.StartsWith(@"\\?\"))
+            {
+                prefix = @"\\?\";
+                realFilename = lpFileName.Substring(4);
+            }
+            else
+            {
+                realFilename = lpFileName;
+            }
+
+            try
+            {
+                redirectedRealFilename = Path.Combine(SandboxRootPath, SandboxName, "Drives", realFilename.Remove(1, 1));
+                redirectedFilename = prefix + redirectedRealFilename;
+                if (File.Exists(redirectedRealFilename)) redirect = true;
+                if (!File.Exists(Path.GetFileNameWithoutExtension(redirectedRealFilename) + ".sbdeleted")) File.Create(Path.GetFileNameWithoutExtension(redirectedRealFilename) + ".sbdeleted");
             }
             catch (Exception ex)
             {
