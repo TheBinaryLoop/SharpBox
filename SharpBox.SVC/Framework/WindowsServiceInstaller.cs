@@ -42,14 +42,8 @@ namespace SharpBox.SVC.Framework
             }
 
             var attribute = windowsServiceType.GetAttribute<WindowsServiceAttribute>();
-
-            if (attribute == null)
-            {
-                throw new ArgumentException("Type to install must be marked with a WindowsServiceAttribute.",
+            Configuration = attribute ?? throw new ArgumentException("Type to install must be marked with a WindowsServiceAttribute.",
                                             "windowsServiceType");
-            }
-
-            Configuration = attribute;
         }
 
 

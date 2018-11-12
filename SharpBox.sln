@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpBox.Remote", "SharpBox
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpBox.SVC", "SharpBox.SVC\SharpBox.SVC.csproj", "{485EFCF9-453E-47F2-9538-7CA76028CCC0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpBox.Core", "SharpBox.Core\SharpBox.Core.csproj", "{99E0D980-FFDA-47C0-A02E-229CD0D31F17}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{485EFCF9-453E-47F2-9538-7CA76028CCC0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{485EFCF9-453E-47F2-9538-7CA76028CCC0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{485EFCF9-453E-47F2-9538-7CA76028CCC0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{99E0D980-FFDA-47C0-A02E-229CD0D31F17}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{99E0D980-FFDA-47C0-A02E-229CD0D31F17}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{99E0D980-FFDA-47C0-A02E-229CD0D31F17}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{99E0D980-FFDA-47C0-A02E-229CD0D31F17}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
