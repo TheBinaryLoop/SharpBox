@@ -36,7 +36,7 @@ namespace SharpBox.CLI
 
             Console.WriteLine();
 
-            if (String.IsNullOrEmpty(args[0]))
+            if (args.Length <= 0 || String.IsNullOrEmpty(args[0]))
             {
                 Console.WriteLine("Missing argument: Target Executable");
                 return;

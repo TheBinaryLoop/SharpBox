@@ -47,19 +47,25 @@ namespace SharpBox.Remote
             #region FileSystem
 
             // CreateFile https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx
-            var createFileHookW = LocalHook.Create(
-                LocalHook.GetProcAddress("kernel32.dll", "CreateFileW"),
-                new CreateFile_Delegate(CreateFile_Hook),
-                this);
             var createFileHookA = LocalHook.Create(
                 LocalHook.GetProcAddress("kernel32.dll", "CreateFileA"),
-                new CreateFile_Delegate(CreateFile_Hook),
+                new CreateFileA_Delegate(CreateFileA_Hook),
+                this);
+            var createFileHookW = LocalHook.Create(
+                LocalHook.GetProcAddress("kernel32.dll", "CreateFileW"),
+                new CreateFileW_Delegate(CreateFileW_Hook),
                 this);
 
             // ReadFile https://msdn.microsoft.com/en-us/library/windows/desktop/aa365467(v=vs.85).aspx
             var readFileHook = LocalHook.Create(
                 LocalHook.GetProcAddress("kernel32.dll", "ReadFile"),
                 new ReadFile_Delegate(ReadFile_Hook),
+                this);
+
+            // ReadFileEx
+            var readFileExHook = LocalHook.Create(
+                LocalHook.GetProcAddress("kernel32.dll", "ReadFileEx"),
+                new ReadFileEx_Delegate(ReadFileEx_Hook),
                 this);
 
             // DeleteFile
@@ -122,14 +128,20 @@ namespace SharpBox.Remote
             #region Process
 
             // CreateProcess
-            //var createProcessA = LocalHook.Create(
-            //    LocalHook.GetProcAddress("kernel32.dll", "CreateProcessA"),
-            //    new CreateProcess_Delegate(CreateProcess_Hooked),
-            //    this);
-            //var createProcessW = LocalHook.Create(
-            //    LocalHook.GetProcAddress("kernel32.dll", "CreateProcessW"),
-            //    new CreateProcess_Delegate(CreateProcess_Hooked),
-            //    this);
+            var createProcessA = LocalHook.Create(
+                LocalHook.GetProcAddress("kernel32.dll", "CreateProcessA"),
+                new CreateProcess_Delegate(CreateProcess_Hooked),
+                this);
+            var createProcessW = LocalHook.Create(
+                LocalHook.GetProcAddress("kernel32.dll", "CreateProcessW"),
+                new CreateProcess_Delegate(CreateProcess_Hooked),
+                this);
+
+            // NtQuerySystemInformation
+            var ntQuerySystemInformation = LocalHook.Create(
+                LocalHook.GetProcAddress("ntdll.dll", "NtQuerySystemInformation"),
+                new NtQuerySystemInformation_Delegate(NtQuerySystemInformation_Hook),
+                this);
 
             #endregion
             #region Style
@@ -160,6 +172,7 @@ namespace SharpBox.Remote
             deleteFileHookA.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             deleteFileHookW.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             readFileHook.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+            readFileExHook.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             writeFileHook.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             findFirstFileHookA.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             findFirstFileHookW.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
@@ -173,8 +186,9 @@ namespace SharpBox.Remote
             #endregion
             #region Process
 
-            //createProcessA.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
-            //createProcessW.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+            createProcessA.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+            createProcessW.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+            ntQuerySystemInformation.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
 
             #endregion
             #region Style
@@ -186,7 +200,8 @@ namespace SharpBox.Remote
 
             //Interface.ReportMessage("CreateFile, CreateProcess, DeleteFile, ReadFile, WriteFile, FindFirstFile FindFirstFileEx and FindNextFile hooks installed");
             //Interface.ReportMessage("CreateFile, DeleteFile, FindFirstFile, FindFirstFileEx, FindNextFile PathFileExists, ReadFile, SetWindowText and WriteFile hooks installed");
-            Interface.ReportMessage("CreateFile, DeleteFile, FindFirstFile, FindFirstFileEx, FindNextFile PathFileExists, ReadFile and WriteFile hooks installed");
+            Interface.ReportMessage("CreateFile, CreateProcess, DeleteFile, FindFirstFile, FindFirstFileEx, FindNextFile, NtQuerySystemInformation, PathFileExists, ReadFile, ReadFileEx and WriteFile hooks installed");
+            //Interface.ReportMessage("CreateFile, CreateProcess, DeleteFile, FindFirstFile, FindFirstFileEx, FindNextFile, PathFileExists, ReadFile, ReadFileEx and WriteFile hooks installed");
 
             // Wake up the process (required if using RemoteHooking.CreateAndInject)
             RemoteHooking.WakeUpProcess();
@@ -230,6 +245,7 @@ namespace SharpBox.Remote
             deleteFileHookA.Dispose();
             deleteFileHookW.Dispose();
             readFileHook.Dispose();
+            readFileExHook.Dispose();
             writeFileHook.Dispose();
             findFirstFileHookA.Dispose();
             findFirstFileHookW.Dispose();
@@ -241,8 +257,9 @@ namespace SharpBox.Remote
             #endregion
             #region Process
 
-            //createProcessA.Dispose();
-            //createProcessW.Dispose();
+            createProcessA.Dispose();
+            createProcessW.Dispose();
+            ntQuerySystemInformation.Dispose();
 
             #endregion
             #region Style
@@ -266,6 +283,8 @@ namespace SharpBox.Remote
 
         #region CreateFile Hook
 
+        #region CreateFileA
+
         /// <summary>
         /// The CreateFile delegate, this is needed to create a delegate of our hook function <see cref="CreateFile_Hook(string, FileAccess, FileShare, IntPtr, FileMode, FileAttributes, IntPtr)"/>.
         /// </summary>
@@ -278,9 +297,9 @@ namespace SharpBox.Remote
         /// <param name="templateFile"></param>
         /// <returns></returns>
         [UnmanagedFunctionPointer(CallingConvention.StdCall,
-                    CharSet = CharSet.Auto,
+                    CharSet = CharSet.Ansi,
                     SetLastError = true)]
-        delegate IntPtr CreateFile_Delegate(
+        delegate IntPtr CreateFileA_Delegate(
                     [MarshalAs(UnmanagedType.LPTStr)] string filename,
                     [MarshalAs(UnmanagedType.U4)] PInvoke.Enums.FileAccess access,
                     [MarshalAs(UnmanagedType.U4)] FileShare share,
@@ -290,7 +309,7 @@ namespace SharpBox.Remote
                     IntPtr templateFile);
 
         /// <summary>
-        /// The CreateFile hook function. This will be called instead of the original CreateFile once hooked.
+        /// The CreateFileA hook function. This will be called instead of the original CreateFileA once hooked.
         /// </summary>
         /// <param name="filename"></param>
         /// <param name="desiredAccess"></param>
@@ -300,7 +319,7 @@ namespace SharpBox.Remote
         /// <param name="flagsAndAttributes"></param>
         /// <param name="templateFile"></param>
         /// <returns></returns>
-        IntPtr CreateFile_Hook(
+        IntPtr CreateFileA_Hook(
             [MarshalAs(UnmanagedType.LPTStr)] string filename,
             [MarshalAs(UnmanagedType.U4)] PInvoke.Enums.FileAccess access,
             [MarshalAs(UnmanagedType.U4)] FileShare share,
@@ -374,7 +393,7 @@ namespace SharpBox.Remote
             }
 
             // now call the original API...
-            return Kernel32.CreateFile(
+            return Kernel32.CreateFileA(
                 filename,
                 access,
                 share,
@@ -383,6 +402,130 @@ namespace SharpBox.Remote
                 flagsAndAttributes,
                 templateFile);
         }
+
+        #endregion
+
+        #region CreateFileW
+
+        /// <summary>
+        /// The CreateFile delegate, this is needed to create a delegate of our hook function <see cref="CreateFile_Hook(string, FileAccess, FileShare, IntPtr, FileMode, FileAttributes, IntPtr)"/>.
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <param name="desiredAccess"></param>
+        /// <param name="shareMode"></param>
+        /// <param name="securityAttributes"></param>
+        /// <param name="creationDisposition"></param>
+        /// <param name="flagsAndAttributes"></param>
+        /// <param name="templateFile"></param>
+        /// <returns></returns>
+        [UnmanagedFunctionPointer(CallingConvention.StdCall,
+                    CharSet = CharSet.Unicode,
+                    SetLastError = true)]
+        delegate IntPtr CreateFileW_Delegate(
+                    [MarshalAs(UnmanagedType.LPTStr)] string filename,
+                    [MarshalAs(UnmanagedType.U4)] PInvoke.Enums.FileAccess access,
+                    [MarshalAs(UnmanagedType.U4)] FileShare share,
+                    IntPtr securityAttributes, // optional SECURITY_ATTRIBUTES struct or IntPtr.Zero
+                    [MarshalAs(UnmanagedType.U4)] FileMode creationDisposition,
+                    [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
+                    IntPtr templateFile);
+
+        /// <summary>
+        /// The CreateFileW hook function. This will be called instead of the original CreateFileW once hooked.
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <param name="desiredAccess"></param>
+        /// <param name="shareMode"></param>
+        /// <param name="securityAttributes"></param>
+        /// <param name="creationDisposition"></param>
+        /// <param name="flagsAndAttributes"></param>
+        /// <param name="templateFile"></param>
+        /// <returns></returns>
+        IntPtr CreateFileW_Hook(
+            [MarshalAs(UnmanagedType.LPTStr)] string filename,
+            [MarshalAs(UnmanagedType.U4)] PInvoke.Enums.FileAccess access,
+            [MarshalAs(UnmanagedType.U4)] FileShare share,
+            IntPtr securityAttributes, // optional SECURITY_ATTRIBUTES struct or IntPtr.Zero
+            [MarshalAs(UnmanagedType.U4)] FileMode creationDisposition,
+            [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
+            IntPtr templateFile)
+        {
+            bool block = false;
+
+            try
+            {
+                lock (this._messageQueue)
+                {
+                    if (this._messageQueue.Count < 1000)
+                    {
+                        string mode = string.Empty;
+                        switch (creationDisposition)
+                        {
+                            case FileMode.CreateNew:
+                                mode = "CREATE_NEW";
+                                break;
+                            case FileMode.Create:
+                                mode = "CREATE_ALWAYS";
+                                break;
+                            case FileMode.Open:
+                                mode = "OPEN_ALWAYS";
+                                break;
+                            case FileMode.OpenOrCreate:
+                                mode = "OPEN_OR_CREATE";
+                                break;
+                            case FileMode.Truncate:
+                                mode = "TRUNCATE_EXISTING";
+                                break;
+                            case FileMode.Append:
+                                mode = "APPEND_EXISTING_OR_CREATE";
+                                break;
+                        }
+
+                        //block = Interface.ShouldBlock(filename, creationDisposition);
+                        // Add message to send to SharpBox
+                        if (Interface.ProcessCreateFileRequest(filename, access, creationDisposition, out String redirectedFilename))
+                        {
+                            this._messageQueue.Enqueue(
+                                string.Format("[{0}:{1}]: CREATE ({2}) \"{3}\" REDIRECTED \"{4}\"",
+                                RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
+                                , mode, filename, redirectedFilename));
+                            filename = redirectedFilename;
+                        }
+                        else if (block)
+                        {
+                            this._messageQueue.Enqueue(
+                            string.Format("[{0}:{1}]: CREATE ({2}) \"{3}\" BLOCKED",
+                            RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
+                            , mode, filename));
+                            return INVALID_HANDLE_VALUE;
+                        }
+                        else
+                        {
+                            this._messageQueue.Enqueue(
+                            string.Format("[{0}:{1}]: CREATE ({2}:{4}) \"{3}\"",
+                            RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
+                            , mode, filename, access));
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // swallow exceptions so that any issues caused by this code do not crash target process
+            }
+
+            // now call the original API...
+            return Kernel32.CreateFileW(
+                filename,
+                access,
+                share,
+                securityAttributes,
+                creationDisposition,
+                flagsAndAttributes,
+                templateFile);
+        }
+
+        #endregion
 
         #endregion
 
@@ -489,6 +632,67 @@ namespace SharpBox.Remote
                                 string.Format("[{0}:{1}]: READ ({2} bytes) \"{3}\"",
                                 RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
                                 , lpNumberOfBytesRead, filename));
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // swallow exceptions so that any issues caused by this code do not crash target process
+            }
+
+            return result;
+        }
+
+        #endregion
+
+        #region ReadFileEx Hook
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        delegate bool ReadFileEx_Delegate(
+            IntPtr hFile,
+            out Byte[] lpBuffer,
+            UInt32 nNumberOfBytesToRead,
+            [In] ref NativeOverlapped lpOverlapped,
+            IOCompletionCallback lpCompletionRoutine);
+
+        bool ReadFileEx_Hook(
+            IntPtr hFile,
+            out Byte[] lpBuffer,
+            UInt32 nNumberOfBytesToRead,
+            [In] ref NativeOverlapped lpOverlapped,
+            IOCompletionCallback lpCompletionRoutine)
+        {
+            bool result = false;
+
+            // Call original first so we have a value for lpNumberOfBytesRead
+            result = Kernel32.ReadFileEx(hFile, out lpBuffer, nNumberOfBytesToRead, ref lpOverlapped, lpCompletionRoutine);
+
+            try
+            {
+                lock (this._messageQueue)
+                {
+                    if (this._messageQueue.Count < 1000)
+                    {
+                        // Retrieve filename from the file handle
+                        StringBuilder filename = new StringBuilder(255);
+                        UInt32 success = Kernel32.GetFinalPathNameByHandle(hFile, filename, 255, 0);
+                        if (success == 0)
+                        {
+                            // Add message to send to SharpBox
+                            this._messageQueue.Enqueue(
+                                string.Format("[{0}:{1}]: READ GET_PATH_NAME_ERROR: {2}",
+                                RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
+                                , Marshal.GetLastWin32Error()));
+                        }
+                        else
+                        {
+                            // Add message to send to SharpBox
+                            this._messageQueue.Enqueue(
+                                string.Format("[{0}:{1}]: READ \"{2}\"",
+                                RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()
+                                , filename));
                         }
                     }
                 }
@@ -871,6 +1075,19 @@ namespace SharpBox.Remote
             out PROCESS_INFORMATION lpProcessInformation)
         {
             bool result = false;
+
+            string targetExe = lpApplicationName;
+            if (String.IsNullOrEmpty(targetExe))
+            {
+                int index = lpCommandLine.IndexOf(".exe") + 4;
+                targetExe = lpCommandLine.Substring(0, index);
+            }
+
+            if (Interface.PathFileExists(targetExe, out String redirectedFilename, out bool isDeleted))
+            {
+                lpApplicationName = lpApplicationName.Replace(targetExe, redirectedFilename);
+                lpCommandLine = lpCommandLine.Replace(targetExe, redirectedFilename);
+            }
             //result = Interface.CaptureProcess(lpApplicationName, lpCommandLine, /*ref lpProcessAttributes, ref lpThreadAttributes,*/ bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory/*, ref lpStartupInfo*/, out lpProcessInformation);
             result = Kernel32.CreateProcess(lpApplicationName, lpCommandLine, ref lpProcessAttributes, ref lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, ref lpStartupInfo, out lpProcessInformation);
             try
@@ -889,6 +1106,314 @@ namespace SharpBox.Remote
             }
 
             //return Kernel32.CreateProcess(lpApplicationName, lpCommandLine, ref lpProcessAttributes, ref lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, ref lpStartupInfo, out lpProcessInformation);
+            return result;
+        }
+
+        #endregion
+
+        #region NtQuerySystemInformation Hook
+
+        [StructLayout(LayoutKind.Sequential)]
+        public class SystemProcessInformation
+        {
+            public uint NextEntryOffset;
+            public uint NumberOfThreads;
+            public long SpareLi1;
+            public long SpareLi2;
+            public long SpareLi3;
+            public long CreateTime;
+            public long UserTime;
+            public long KernelTime;
+
+            public ushort NameLength;   // UNICODE_STRING   
+            public ushort MaximumNameLength;
+            public IntPtr NamePtr;     // This will point into the data block returned by NtQuerySystemInformation
+
+            public int BasePriority;
+            public IntPtr UniqueProcessId;
+            public IntPtr InheritedFromUniqueProcessId;
+            public uint HandleCount;
+            public uint SessionId;
+            public UIntPtr PageDirectoryBase;
+            public UIntPtr PeakVirtualSize;  // SIZE_T
+            public UIntPtr VirtualSize;
+            public uint PageFaultCount;
+
+            public UIntPtr PeakWorkingSetSize;
+            public UIntPtr WorkingSetSize;
+            public UIntPtr QuotaPeakPagedPoolUsage;
+            public UIntPtr QuotaPagedPoolUsage;
+            public UIntPtr QuotaPeakNonPagedPoolUsage;
+            public UIntPtr QuotaNonPagedPoolUsage;
+            public UIntPtr PagefileUsage;
+            public UIntPtr PeakPagefileUsage;
+            public UIntPtr PrivatePageCount;
+
+            public long ReadOperationCount;
+            public long WriteOperationCount;
+            public long OtherOperationCount;
+            public long ReadTransferCount;
+            public long WriteTransferCount;
+            public long OtherTransferCount;
+        }
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Auto, SetLastError = true)]
+        delegate NTSTATUS NtQuerySystemInformation_Delegate(SYSTEM_INFORMATION_CLASS InfoClass, IntPtr Info, UInt32 Size, out UInt32 Length);
+
+        NTSTATUS NtQuerySystemInformation_Hook(SYSTEM_INFORMATION_CLASS InfoClass, IntPtr Info, UInt32 Size, out UInt32 Length)
+        {
+            NTSTATUS result = Ntdll.NtQuerySystemInformation(InfoClass, Info, Size, out Length);
+
+            if (InfoClass == SYSTEM_INFORMATION_CLASS.SystemProcessInformation && result == NTSTATUS.SUCCESS) // Hide processes
+            {
+                try
+                {
+                    long totalOffset = 0;
+
+                    //while (true)
+                    //{
+                    //    IntPtr currentPtr = (IntPtr)((long)Info + totalOffset);
+                    //    SystemProcessInformation pi = new SystemProcessInformation();
+
+                    //    Marshal.PtrToStructure(currentPtr, pi);
+
+                    //    string name = "";
+
+                    //    if (pi.NamePtr == IntPtr.Zero)
+                    //    {
+                    //        if (pi.UniqueProcessId.ToInt32() == 8)
+                    //        {
+                    //            name = "System";
+                    //        }
+                    //        else if (pi.UniqueProcessId.ToInt32() == 0)
+                    //        {
+                    //            name = "Idle";
+                    //        }
+                    //        else
+                    //        {
+                    //            name = pi.UniqueProcessId.ToInt32().ToString();
+                    //        }
+                    //    }
+                    //    else
+                    //    {
+                    //        #region GetProcessShortName
+
+                    //        name = Marshal.PtrToStringUni(pi.NamePtr, pi.NameLength / sizeof(char));
+
+                    //        int slash = -1;
+                    //        int period = -1;
+
+                    //        for (int i = 0; i < name.Length; i++)
+                    //        {
+                    //            if (name[i] == '\\')
+                    //                slash = i;
+                    //            else if (name[i] == '.')
+                    //                period = i;
+                    //        }
+
+                    //        if (period == -1)
+                    //            period = name.Length - 1; // set to end of string
+                    //        else
+                    //        {
+                    //            // if a period was found, then see if the extension is
+                    //            // .EXE, if so drop it, if not, then use end of string
+                    //            // (i.e. include extension in name)
+                    //            String extension = name.Substring(period);
+
+                    //            if (String.Equals(".exe", extension, StringComparison.OrdinalIgnoreCase))
+                    //                period--;                 // point to character before period
+                    //            else
+                    //                period = name.Length - 1; // set to end of string
+                    //        }
+
+                    //        if (slash == -1)
+                    //            slash = 0;     // set to start of string
+                    //        else
+                    //            slash++;       // point to character next to slash
+
+                    //        // copy characters between period (or end of string) and
+                    //        // slash (or start of string) to make image name
+                    //        name = name.Substring(slash, period - slash + 1);
+
+                    //        #endregion
+                    //    }
+
+                    //    //lock (this._messageQueue)
+                    //    //{
+                    //    //    this._messageQueue.Enqueue(
+                    //    //            string.Format("[{0}:{1}]: NtQuerySystemInformation ({2}) CurrPtr: {3}",
+                    //    //            RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                    //    //            name, currentPtr.ToInt64().ToString("x4")));
+                    //    //}
+
+                    //    currentPtr = (IntPtr)((long)currentPtr + Marshal.SizeOf(pi));
+
+                    //    if (pi.NextEntryOffset == 0)
+                    //    {
+                    //        break;
+                    //    }
+                    //    totalOffset += pi.NextEntryOffset;
+                    //}
+
+
+                    lock (this._messageQueue)
+                    {
+                        this._messageQueue.Enqueue(
+                                string.Format("[{0}:{1}]: NtQuerySystemInformation",
+                                RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()));
+                    }
+
+                    IntPtr currentPtr = (IntPtr)((long)Info + totalOffset);
+
+                    SystemProcessInformation pPrev = new SystemProcessInformation();
+                    Marshal.PtrToStructure(currentPtr, pPrev);
+                    currentPtr = (IntPtr)((long)currentPtr + Marshal.SizeOf(pPrev));
+                    totalOffset += pPrev.NextEntryOffset;
+                    SystemProcessInformation pCurrent = new SystemProcessInformation();
+                    Marshal.PtrToStructure(currentPtr, pCurrent);
+
+                    while (pPrev.NextEntryOffset != 0)
+                    {
+                        string name = "";
+
+                        if (pCurrent.NamePtr == IntPtr.Zero)
+                        {
+                            if (pCurrent.UniqueProcessId.ToInt32() == 8)
+                            {
+                                name = "System";
+                            }
+                            else if (pCurrent.UniqueProcessId.ToInt32() == 0)
+                            {
+                                name = "Idle";
+                            }
+                            else
+                            {
+                                name = pCurrent.UniqueProcessId.ToInt32().ToString();
+                            }
+                        }
+                        else
+                        {
+                            #region GetProcessShortName
+
+                            name = Marshal.PtrToStringUni(pCurrent.NamePtr, pCurrent.NameLength / sizeof(char));
+
+                            int slash = -1;
+                            int period = -1;
+
+                            for (int i = 0; i < name.Length; i++)
+                            {
+                                if (name[i] == '\\')
+                                    slash = i;
+                                else if (name[i] == '.')
+                                    period = i;
+                            }
+
+                            if (period == -1)
+                                period = name.Length - 1; // set to end of string
+                            else
+                            {
+                                // if a period was found, then see if the extension is
+                                // .EXE, if so drop it, if not, then use end of string
+                                // (i.e. include extension in name)
+                                String extension = name.Substring(period);
+
+                                if (String.Equals(".exe", extension, StringComparison.OrdinalIgnoreCase))
+                                    period--;                 // point to character before period
+                                else
+                                    period = name.Length - 1; // set to end of string
+                            }
+
+                            if (slash == -1)
+                                slash = 0;     // set to start of string
+                            else
+                                slash++;       // point to character next to slash
+
+                            // copy characters between period (or end of string) and
+                            // slash (or start of string) to make image name
+                            name = name.Substring(slash, period - slash + 1);
+
+                            #endregion
+                        }
+
+                        lock (this._messageQueue)
+                        {
+                            this._messageQueue.Enqueue(
+                                    string.Format("[{0}:{1}]: NtQuerySystemInformation ({2}) CurrPtr: {3}",
+                                    RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                                    name, currentPtr.ToInt64().ToString("x4")));
+                        }
+
+                        if (name != "(firefox)")
+                        {
+                            if (pCurrent.NextEntryOffset == 0)
+                            {
+                                pPrev.NextEntryOffset = 0;
+                            }
+                            else
+                            {
+                                pPrev.NextEntryOffset += pCurrent.NextEntryOffset;
+                            }
+                            pCurrent = pPrev;
+                        }
+                        pPrev = pCurrent;
+                        currentPtr = (IntPtr)((long)currentPtr + Marshal.SizeOf(pCurrent));
+                        totalOffset += pPrev.NextEntryOffset;
+                        Marshal.PtrToStructure(currentPtr, pCurrent);
+                    }
+
+                    //SYSTEM_PROCESS_INFORMATION pPrev = (SYSTEM_PROCESS_INFORMATION)Marshal.PtrToStructure(Info, typeof(SYSTEM_PROCESS_INFORMATION));
+                    //SYSTEM_PROCESS_INFORMATION pCurrent;
+
+                    //IntPtr ptr = Marshal.AllocHGlobal(Marshal.SizeOf(pPrev));
+                    //try
+                    //{
+                    //    Marshal.StructureToPtr(pPrev, ptr, false);
+                    //    pCurrent = (SYSTEM_PROCESS_INFORMATION)Marshal.PtrToStructure(new IntPtr(ptr.ToInt64() + pPrev.NextEntryOffset), typeof(SYSTEM_PROCESS_INFORMATION));
+                    //}
+                    //finally
+                    //{
+                    //    Marshal.FreeHGlobal(ptr);
+                    //}
+
+                    //while (pPrev.NextEntryOffset != 0)
+                    //{
+                    //    lock (this._messageQueue)
+                    //    {
+                    //        this._messageQueue.Enqueue(
+                    //                string.Format("[{0}:{1}]: NtQuerySystemInformation ({2}) CurrPtr: {3}",
+                    //                RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                    //                pCurrent.ImageName.ToString(), ""));
+                    //    }
+                    //    //if (pCurrent.ImageName.ToString() != "")
+                    //    //{
+                    //    if (pCurrent.NextEntryOffset == 0)
+                    //    {
+                    //        pPrev.NextEntryOffset = 0;
+                    //    }
+                    //    else
+                    //    {
+                    //        pPrev.NextEntryOffset += pCurrent.NextEntryOffset;
+                    //    }
+                    //    pCurrent = pPrev;
+                    //    //}
+                    //    pPrev = pCurrent;
+                    //    IntPtr ptrStruct = Marshal.AllocHGlobal(Marshal.SizeOf(pCurrent));
+                    //    try
+                    //    {
+                    //        Marshal.StructureToPtr(pCurrent, ptrStruct, false);
+                    //        pCurrent = (SYSTEM_PROCESS_INFORMATION)Marshal.PtrToStructure(new IntPtr(ptrStruct.ToInt64() + pCurrent.NextEntryOffset), typeof(SYSTEM_PROCESS_INFORMATION));
+                    //    }
+                    //    finally
+                    //    {
+                    //        Marshal.FreeHGlobal(ptrStruct);
+                    //    }
+                    //}
+                }
+                catch (Exception ex)
+                {
+                    Interface.ReportException(ex);
+                }
+            }
             return result;
         }
 
@@ -916,25 +1441,25 @@ namespace SharpBox.Remote
             {
                 //if (hWnd != IntPtr.Zero && !string.IsNullOrEmpty(lpString))
                 //{
-                    lock (this._messageQueue)
+                lock (this._messageQueue)
+                {
+                    if (hWnd != IntPtr.Zero && !lpString.StartsWith("~SharpBoxed~"))
                     {
-                        if (hWnd != IntPtr.Zero && !lpString.StartsWith("~SharpBoxed~"))
-                        {
-                            string newText = $"~SharpBoxed~ {lpString}";
-                            this._messageQueue.Enqueue(
-                                string.Format("[{0}:{1}]: SETWINDOWTEXTA \"{2}\" CHANGED \"{3}\"",
-                                RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
-                                lpString, newText));
-                            lpString = newText;
-                        }
-                        else
-                        {
-                            this._messageQueue.Enqueue(
-                                string.Format("[{0}:{1}]: SETWINDOWTEXTA \"{2}\"",
-                                RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
-                                lpString));
-                        }
+                        string newText = $"~SharpBoxed~ {lpString}";
+                        this._messageQueue.Enqueue(
+                            string.Format("[{0}:{1}]: SETWINDOWTEXTA \"{2}\" CHANGED \"{3}\"",
+                            RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                            lpString, newText));
+                        lpString = newText;
                     }
+                    else
+                    {
+                        this._messageQueue.Enqueue(
+                            string.Format("[{0}:{1}]: SETWINDOWTEXTA \"{2}\"",
+                            RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                            lpString));
+                    }
+                }
                 //}
             }
             catch
@@ -966,25 +1491,25 @@ namespace SharpBox.Remote
                 }
                 //if (hWnd != IntPtr.Zero && !string.IsNullOrEmpty(lpString))
                 //{
-                    lock (this._messageQueue)
+                lock (this._messageQueue)
+                {
+                    if (hWnd != IntPtr.Zero && !lpString.StartsWith("~SharpBoxed~"))
                     {
-                        if (hWnd != IntPtr.Zero && !lpString.StartsWith("~SharpBoxed~"))
-                        {
-                            string newText = $"~SharpBoxed~ {lpString}";
-                            this._messageQueue.Enqueue(
-                                string.Format("[{0}:{1}]: SETWINDOWTEXTW \"{2}\" CHANGED \"{3}\"",
-                                RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
-                                lpString, newText));
-                            lpString = newText;
-                        }
-                        else
-                        {
-                            this._messageQueue.Enqueue(
-                                string.Format("[{0}:{1}]: SETWINDOWTEXTW \"{2}\"",
-                                RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
-                                lpString));
-                        }
+                        string newText = $"~SharpBoxed~ {lpString}";
+                        this._messageQueue.Enqueue(
+                            string.Format("[{0}:{1}]: SETWINDOWTEXTW \"{2}\" CHANGED \"{3}\"",
+                            RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                            lpString, newText));
+                        lpString = newText;
                     }
+                    else
+                    {
+                        this._messageQueue.Enqueue(
+                            string.Format("[{0}:{1}]: SETWINDOWTEXTW \"{2}\"",
+                            RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                            lpString));
+                    }
+                }
                 //}
             }
             catch

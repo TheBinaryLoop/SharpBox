@@ -22,6 +22,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -65,10 +66,13 @@
     <Compile Include="PInvoke\Librarys\Ntdll.cs" />
     <Compile Include="PInvoke\Librarys\Shlwapi.cs" />
     <Compile Include="PInvoke\Librarys\User32.cs" />
+    <Compile Include="PInvoke\Structs\LARGE_INTEGER.cs" />
     <Compile Include="PInvoke\Structs\PROCESS_INFORMATION.cs" />
     <Compile Include="PInvoke\Structs\SECURITY_ATTRIBUTES.cs" />
     <Compile Include="PInvoke\Structs\STARTUPINFO.cs" />
     <Compile Include="PInvoke\Structs\STARTUPINFOEX.cs" />
+    <Compile Include="PInvoke\Structs\SYSTEM_PROCESS_INFORMATION.cs" />
+    <Compile Include="PInvoke\Structs\UNICODE_STRING.cs" />
     <Compile Include="PInvoke\Structs\WIN32_FIND_DATA.cs" />
     <Compile Include="PInvoke\Types\WinEventDelegate.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

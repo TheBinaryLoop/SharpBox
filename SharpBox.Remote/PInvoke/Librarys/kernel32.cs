@@ -2,6 +2,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using SharpBox.Remote.PInvoke.Enums;
 using SharpBox.Remote.PInvoke.Structs;
 
@@ -10,35 +11,35 @@ namespace SharpBox.Remote.PInvoke.Librarys
     public static class Kernel32
     {
 
-        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        public static extern IntPtr CreateFile(
-            [MarshalAs(UnmanagedType.LPTStr)] String filename,
-            [MarshalAs(UnmanagedType.U4)] Enums.FileAccess access,
-            [MarshalAs(UnmanagedType.U4)] FileShare share,
-            IntPtr securityAttributes, // optional SECURITY_ATTRIBUTES struct or IntPtr.Zero
-            [MarshalAs(UnmanagedType.U4)] FileMode creationDisposition,
-            [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
-            IntPtr templateFile);
+        //[DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        //public static extern IntPtr CreateFile(
+        //    [MarshalAs(UnmanagedType.LPTStr)] String filename,
+        //    [MarshalAs(UnmanagedType.U4)] Enums.FileAccess access,
+        //    [MarshalAs(UnmanagedType.U4)] FileShare share,
+        //    IntPtr securityAttributes, // optional SECURITY_ATTRIBUTES struct or IntPtr.Zero
+        //    [MarshalAs(UnmanagedType.U4)] FileMode creationDisposition,
+        //    [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
+        //    IntPtr templateFile);
 
-        //[DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
-        //public static extern IntPtr CreateFileA(
-        //     [MarshalAs(UnmanagedType.LPStr)] String filename,
-        //     [MarshalAs(UnmanagedType.U4)] Enums.FileAccess access,
-        //     [MarshalAs(UnmanagedType.U4)] FileShare share,
-        //     IntPtr securityAttributes,
-        //     [MarshalAs(UnmanagedType.U4)] FileMode creationDisposition,
-        //     [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
-        //     IntPtr templateFile);
+        [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
+        public static extern IntPtr CreateFileA(
+             [MarshalAs(UnmanagedType.LPStr)] String filename,
+             [MarshalAs(UnmanagedType.U4)] Enums.FileAccess access,
+             [MarshalAs(UnmanagedType.U4)] FileShare share,
+             IntPtr securityAttributes,
+             [MarshalAs(UnmanagedType.U4)] FileMode creationDisposition,
+             [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
+             IntPtr templateFile);
 
-        //[DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        //public static extern IntPtr CreateFileW(
-        //     [MarshalAs(UnmanagedType.LPWStr)] String filename,
-        //     [MarshalAs(UnmanagedType.U4)] Enums.FileAccess access,
-        //     [MarshalAs(UnmanagedType.U4)] FileShare share,
-        //     IntPtr securityAttributes,
-        //     [MarshalAs(UnmanagedType.U4)] FileMode creationDisposition,
-        //     [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
-        //     IntPtr templateFile);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        public static extern IntPtr CreateFileW(
+             [MarshalAs(UnmanagedType.LPWStr)] String filename,
+             [MarshalAs(UnmanagedType.U4)] Enums.FileAccess access,
+             [MarshalAs(UnmanagedType.U4)] FileShare share,
+             IntPtr securityAttributes,
+             [MarshalAs(UnmanagedType.U4)] FileMode creationDisposition,
+             [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
+             IntPtr templateFile);
 
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         public static extern Boolean CreateProcess(
@@ -58,12 +59,21 @@ namespace SharpBox.Remote.PInvoke.Librarys
         public static extern Boolean DeleteFile(String lpFileName);
 
         [DllImport("kernel32.dll", SetLastError = true, CallingConvention = CallingConvention.StdCall)]
+        [return: MarshalAs(UnmanagedType.Bool)]
         public static extern Boolean ReadFile(
             IntPtr hFile,
             IntPtr lpBuffer,
             UInt32 nNumberOfBytesToRead,
             out UInt32 lpNumberOfBytesRead,
             IntPtr lpOverlapped);
+
+        [DllImport("kernel32.dll", SetLastError = true, CallingConvention = CallingConvention.StdCall)]
+        public static extern Boolean ReadFileEx(
+            IntPtr hFile,
+            out Byte[] lpBuffer,
+            UInt32 nNumberOfBytesToRead,
+            [In] ref NativeOverlapped lpOverlapped,
+            IOCompletionCallback lpCompletionRoutine);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true, CallingConvention = CallingConvention.StdCall)]
         [return: MarshalAs(UnmanagedType.Bool)]
