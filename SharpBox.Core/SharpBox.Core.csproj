@@ -9,9 +9,10 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>SharpBox.Core</RootNamespace>
     <AssemblyName>SharpBox.Core</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -49,6 +50,15 @@
     <Compile Include="FileSystem\IFileSystem.cs" />
     <Compile Include="FileSystem\Item\IFSItem.cs" />
     <Compile Include="FileSystem\SandboxFileSystem.cs" />
+    <Compile Include="IPC\Client\PipeClient.cs" />
+    <Compile Include="IPC\Interfaces\ICommunication.cs" />
+    <Compile Include="IPC\Interfaces\ICommunicationClient.cs" />
+    <Compile Include="IPC\Interfaces\ICommunicationServer.cs" />
+    <Compile Include="IPC\IPCMessage.cs" />
+    <Compile Include="IPC\Server\InternalPipeServer.cs" />
+    <Compile Include="IPC\Server\PipeServer.cs" />
+    <Compile Include="IPC\Utilities\EventHandlerExtensions.cs" />
+    <Compile Include="IPC\Utilities\TaskResult.cs" />
     <Compile Include="Processes\IProcess.cs" />
     <Compile Include="Processes\Process.cs" />
     <Compile Include="Sandbox.cs" />

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ServiceProcess;
+using SharpBox.Core.IPC.Server;
 using SharpBox.SVC.Framework;
 
 namespace SharpBox.SVC
@@ -15,6 +16,8 @@ namespace SharpBox.SVC
     public class ServiceImplementation : IWindowsService
     {
 
+        private PipeServer _server;
+
         /// <summary>
         /// This method is called when the service gets a request to start.
         /// </summary>
@@ -22,6 +25,20 @@ namespace SharpBox.SVC
         public void OnStart(string[] args)
         {
             ConsoleHarness.WriteToConsole(ConsoleColor.Green, "OnStart({0})", args);
+            _server = new PipeServer("sharpbox_ipc");
+            _server.ClientConnectedEvent += (sender, eargs) =>
+            {
+                Console.WriteLine($"Client with id {eargs.ClientId} has connected.");
+            };
+            _server.ClientDisconnectedEvent += (sender, eargs) =>
+            {
+                Console.WriteLine($"Client with id {eargs.ClientId} has disconnected.");
+            };
+            _server.MessageReceivedEvent += (sender, eargs) =>
+            {
+                Console.WriteLine($"New message from client: {eargs.Message}");
+            };
+            _server.Start();
         }
 
         /// <summary>
@@ -29,6 +46,11 @@ namespace SharpBox.SVC
         /// </summary>
         public void OnStop()
         {
+            if (_server != null)
+            {
+                _server.Stop();
+                _server = null;
+            }
             ConsoleHarness.WriteToConsole(ConsoleColor.Red, "OnStop()");
         }
 
@@ -56,6 +78,11 @@ namespace SharpBox.SVC
         /// </summary>
         public void OnShutdown()
         {
+            if (_server != null)
+            {
+                _server.Stop();
+                _server = null;
+            }
             ConsoleHarness.WriteToConsole(ConsoleColor.DarkRed, "OnShutdown()");
         }
 

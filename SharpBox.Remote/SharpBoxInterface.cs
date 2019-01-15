@@ -47,7 +47,10 @@ namespace SharpBox.Remote
         /// <param name="e"></param>
         public void ReportException(Exception e)
         {
+            ConsoleColor consoleColor = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"The target process has reported an error:\r\n{e.ToString()}");
+            Console.ForegroundColor = consoleColor;
         }
 
         int count = 0;
@@ -88,6 +91,9 @@ namespace SharpBox.Remote
             redirectedFilename = string.Empty;
             string redirectedRealFilename = string.Empty;
 
+            // Check if pipe
+            if (filename.StartsWith(@"\\.\pipe\")) return false;
+
             // Check FileAccess
             if (access == PInvoke.Enums.FileAccess.GenericWrite || access == PInvoke.Enums.FileAccess.GenericAll) redirect = true;
 
@@ -107,7 +113,7 @@ namespace SharpBox.Remote
             }
             try
             {
-                redirectedRealFilename = Path.Combine(SandboxRootPath, SandboxName, "Drives", realFilename.Remove(1, 1));
+                redirectedRealFilename = Path.Combine(SandboxRootPath, SandboxName, "Drives", realFilename.Replace(":", ""));
                 redirectedFilename = prefix + redirectedRealFilename;
 
                 if (File.Exists(redirectedRealFilename)) redirect = true;
@@ -119,7 +125,7 @@ namespace SharpBox.Remote
                     {
                         File.Copy(realFilename, redirectedRealFilename);
                     }
-                    if (File.Exists(Path.GetFileNameWithoutExtension(redirectedRealFilename) + ".sbdeleted")) File.Delete(Path.GetFileNameWithoutExtension(redirectedRealFilename) + ".sbdeleted");
+                    if (File.Exists(redirectedRealFilename + ".sbdeleted")) File.Delete(redirectedRealFilename + ".sbdeleted");
                     //else if (File.Exists(realFilename) && File.Exists(redirectedRealFilename))
                     //{
                     //    File.Copy(realFilename, redirectedRealFilename, File.GetLastWriteTimeUtc(realFilename) > File.GetLastWriteTimeUtc(redirectedRealFilename));
@@ -156,11 +162,11 @@ namespace SharpBox.Remote
 
             try
             {
-                redirectedRealFilename = Path.Combine(SandboxRootPath, SandboxName, "Drives", realFilename.Remove(1, 1));
+                redirectedRealFilename = Path.Combine(SandboxRootPath, SandboxName, "Drives", realFilename.Replace(":", ""));
                 redirectedFilename = prefix + redirectedRealFilename;
 
                 if (File.Exists(redirectedRealFilename)) redirect = true;
-                if (File.Exists(Path.GetFileNameWithoutExtension(redirectedRealFilename) + ".sbdeleted")) isDeleted = true;
+                if (File.Exists(redirectedRealFilename + ".sbdeleted")) isDeleted = true;
             }
             catch (Exception ex)
             {
@@ -190,10 +196,10 @@ namespace SharpBox.Remote
 
             try
             {
-                redirectedRealFilename = Path.Combine(SandboxRootPath, SandboxName, "Drives", realFilename.Remove(1, 1));
+                redirectedRealFilename = Path.Combine(SandboxRootPath, SandboxName, "Drives", realFilename.Replace(":", ""));
                 redirectedFilename = prefix + redirectedRealFilename;
                 if (File.Exists(redirectedRealFilename)) redirect = true;
-                if (!File.Exists(Path.GetFileNameWithoutExtension(redirectedRealFilename) + ".sbdeleted")) File.Create(Path.GetFileNameWithoutExtension(redirectedRealFilename) + ".sbdeleted");
+                if (!File.Exists(redirectedRealFilename + ".sbdeleted")) File.Create(redirectedRealFilename + ".sbdeleted").Close();
             }
             catch (Exception ex)
             {

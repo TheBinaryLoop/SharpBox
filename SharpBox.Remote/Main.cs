@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using EasyHook;
+using SharpBox.Core.IPC.Client;
 using SharpBox.Remote.PInvoke.Enums;
 using SharpBox.Remote.PInvoke.Librarys;
 using SharpBox.Remote.PInvoke.Structs;
@@ -18,6 +19,7 @@ namespace SharpBox.Remote
         static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
 
         SharpBoxInterface Interface; // TODO: Replace Interface with NamedPipe/IPC with SharpBox.SVC
+        //private PipeClient _client;
 
         /// <summary>
         /// Message queue of all files accessed
@@ -28,6 +30,8 @@ namespace SharpBox.Remote
         {
             // connect to host...
             Interface = RemoteHooking.IpcConnectClient<SharpBoxInterface>(InChannelName);
+            //_client = new PipeClient("sharpbox_ipc");
+            //_client.Start();
 
             // If Ping fails then the Run method will be not be called
             Interface.Ping();
@@ -41,6 +45,7 @@ namespace SharpBox.Remote
         public void Run(RemoteHooking.IContext InContext, String InChannelName, String InExecutableName, String InLibraryPath_x86, String InLibraryPath_x64)
         {
             Interface.IsInstalled(RemoteHooking.GetCurrentProcessId());
+            //_client.SendMessage($"SharpBox has injected SharpBox.Remote into process {RemoteHooking.GetCurrentProcessId()}.\r\n");
 
             // Install hooks
 
@@ -138,10 +143,10 @@ namespace SharpBox.Remote
                 this);
 
             // NtQuerySystemInformation
-            var ntQuerySystemInformation = LocalHook.Create(
-                LocalHook.GetProcAddress("ntdll.dll", "NtQuerySystemInformation"),
-                new NtQuerySystemInformation_Delegate(NtQuerySystemInformation_Hook),
-                this);
+            //var ntQuerySystemInformation = LocalHook.Create(
+            //    LocalHook.GetProcAddress("ntdll.dll", "NtQuerySystemInformation"),
+            //    new NtQuerySystemInformation_Delegate(NtQuerySystemInformation_Hook),
+            //    this);
 
             #endregion
             #region Style
@@ -155,6 +160,11 @@ namespace SharpBox.Remote
             //    LocalHook.GetProcAddress("user32.dll", "SetWindowTextW"),
             //    new SetWindowTextW_Delegate(SetWindowTextW_Hooked),
             //    this);
+            // DrawIcon
+            var drawIcon = LocalHook.Create(
+                LocalHook.GetProcAddress("user32.dll", "DrawIcon"),
+                new DrawIcon_Delegate(DrawIcon_Hooked),
+                this);
 
             #endregion
             #region WinEvent
@@ -188,13 +198,14 @@ namespace SharpBox.Remote
 
             createProcessA.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             createProcessW.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
-            ntQuerySystemInformation.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+            //ntQuerySystemInformation.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
 
             #endregion
             #region Style
 
             //setWindowTextA.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             //setWindowTextW.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+            drawIcon.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
 
             #endregion
 
@@ -259,13 +270,14 @@ namespace SharpBox.Remote
 
             createProcessA.Dispose();
             createProcessW.Dispose();
-            ntQuerySystemInformation.Dispose();
+            //ntQuerySystemInformation.Dispose();
 
             #endregion
             #region Style
 
             //setWindowTextA.Dispose();
             //setWindowTextW.Dispose();
+            drawIcon.Dispose();
 
             #endregion
             #region WinEvent
@@ -1080,7 +1092,7 @@ namespace SharpBox.Remote
             if (String.IsNullOrEmpty(targetExe))
             {
                 int index = lpCommandLine.IndexOf(".exe") + 4;
-                targetExe = lpCommandLine.Substring(0, index);
+                targetExe = lpCommandLine.Substring(0, index).Replace("\"", "");
             }
 
             if (Interface.PathFileExists(targetExe, out String redirectedFilename, out bool isDeleted))
@@ -1439,27 +1451,41 @@ namespace SharpBox.Remote
 
             try
             {
-                //if (hWnd != IntPtr.Zero && !string.IsNullOrEmpty(lpString))
-                //{
-                lock (this._messageQueue)
+                if (Process.GetCurrentProcess().MainWindowHandle != IntPtr.Zero && Process.GetCurrentProcess().MainWindowTitle != "" && !Process.GetCurrentProcess().MainWindowTitle.StartsWith("~SharpBoxed~"))
                 {
-                    if (hWnd != IntPtr.Zero && !lpString.StartsWith("~SharpBoxed~"))
+                    string title = Process.GetCurrentProcess().MainWindowTitle;
+                    string newTitle = $"~SharpBoxed~ {title}";
+                    User32.SetWindowTextA(Process.GetCurrentProcess().MainWindowHandle, newTitle);
+                    lock (this._messageQueue)
                     {
-                        string newText = $"~SharpBoxed~ {lpString}";
                         this._messageQueue.Enqueue(
                             string.Format("[{0}:{1}]: SETWINDOWTEXTA \"{2}\" CHANGED \"{3}\"",
                             RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
-                            lpString, newText));
-                        lpString = newText;
-                    }
-                    else
-                    {
-                        this._messageQueue.Enqueue(
-                            string.Format("[{0}:{1}]: SETWINDOWTEXTA \"{2}\"",
-                            RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
-                            lpString));
+                            title, newTitle));
                     }
                 }
+
+                //if (hWnd != IntPtr.Zero && !string.IsNullOrEmpty(lpString))
+                //{
+                //lock (this._messageQueue)
+                //{
+                    //if (hWnd != IntPtr.Zero && !lpString.StartsWith("~SharpBoxed~"))
+                    //{
+                    //    string newText = $"~SharpBoxed~ {lpString}";
+                    //    this._messageQueue.Enqueue(
+                    //        string.Format("[{0}:{1}]: SETWINDOWTEXTA \"{2}\" CHANGED \"{3}\"",
+                    //        RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                    //        lpString, newText));
+                    //    lpString = newText;
+                    //}
+                    //else
+                    //{
+                        //this._messageQueue.Enqueue(
+                        //    string.Format("[{0}:{1}]: SETWINDOWTEXTA \"{2}\"",
+                        //    RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                        //    lpString));
+                    //}
+                //}
                 //}
             }
             catch
@@ -1485,31 +1511,40 @@ namespace SharpBox.Remote
 
             try
             {
-                if (Process.GetCurrentProcess().MainWindowHandle != IntPtr.Zero && !Process.GetCurrentProcess().MainWindowTitle.StartsWith("~SharpBoxed~"))
+                if (Process.GetCurrentProcess().MainWindowHandle != IntPtr.Zero && Process.GetCurrentProcess().MainWindowTitle != "" && !Process.GetCurrentProcess().MainWindowTitle.StartsWith("~SharpBoxed~"))
                 {
-                    User32.SetWindowTextW(Process.GetCurrentProcess().MainWindowHandle, $"~SharpBoxed~ {Process.GetCurrentProcess().MainWindowTitle}");
-                }
-                //if (hWnd != IntPtr.Zero && !string.IsNullOrEmpty(lpString))
-                //{
-                lock (this._messageQueue)
-                {
-                    if (hWnd != IntPtr.Zero && !lpString.StartsWith("~SharpBoxed~"))
+                    string title = Process.GetCurrentProcess().MainWindowTitle;
+                    string newTitle = $"~SharpBoxed~ {title}";
+                    User32.SetWindowTextW(Process.GetCurrentProcess().MainWindowHandle, newTitle);
+                    lock (this._messageQueue)
                     {
-                        string newText = $"~SharpBoxed~ {lpString}";
                         this._messageQueue.Enqueue(
                             string.Format("[{0}:{1}]: SETWINDOWTEXTW \"{2}\" CHANGED \"{3}\"",
                             RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
-                            lpString, newText));
-                        lpString = newText;
-                    }
-                    else
-                    {
-                        this._messageQueue.Enqueue(
-                            string.Format("[{0}:{1}]: SETWINDOWTEXTW \"{2}\"",
-                            RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
-                            lpString));
+                            title, newTitle));
                     }
                 }
+                //if (hWnd != IntPtr.Zero && !string.IsNullOrEmpty(lpString))
+                //{
+                //lock (this._messageQueue)
+                //{
+                    //if (hWnd != IntPtr.Zero && !lpString.StartsWith("~SharpBoxed~"))
+                    //{
+                    //    string newText = $"~SharpBoxed~ {lpString}";
+                    //    this._messageQueue.Enqueue(
+                    //        string.Format("[{0}:{1}]: SETWINDOWTEXTW \"{2}\" CHANGED \"{3}\"",
+                    //        RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                    //        lpString, newText));
+                    //    lpString = newText;
+                    //}
+                    //else
+                    //{
+                        //this._messageQueue.Enqueue(
+                        //    string.Format("[{0}:{1}]: SETWINDOWTEXTW \"{2}\"",
+                        //    RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                        //    lpString));
+                    //}
+                //}
                 //}
             }
             catch
@@ -1520,6 +1555,35 @@ namespace SharpBox.Remote
         }
 
         #endregion
+
+        #endregion
+
+        #region DrawIcon
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Auto, SetLastError = true)]
+        delegate bool DrawIcon_Delegate(IntPtr hDC, int X, int Y, IntPtr hIcon);
+
+        bool DrawIcon_Hooked(IntPtr hDC, int X, int Y, IntPtr hIcon)
+        {
+            try
+            {
+                lock (this._messageQueue)
+                {
+                    if (hDC != IntPtr.Zero)
+                    {
+                        this._messageQueue.Enqueue(
+                            string.Format("[{0}:{1}]: DRAWICON \"X:{2};Y:{3}\"",
+                            RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                            X, Y));
+                    }
+                }
+            }
+            catch
+            {
+                // swallow exceptions so that any issues caused by this code do not crash target process
+            }
+            return User32.DrawIcon(hDC, X, Y, hIcon);
+        }
 
         #endregion
 

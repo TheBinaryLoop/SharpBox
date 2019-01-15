@@ -102,6 +102,11 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <ProjectReference Include="..\SharpBox.Core\SharpBox.Core.csproj">
+      <Project>{99e0d980-ffda-47c0-a02e-229cd0d31f17}</Project>
+      <Name>SharpBox.Core</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
