@@ -75,5 +75,8 @@ namespace SharpBox.Remote.PInvoke.Librarys
 
         [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         public static extern bool DrawIcon(IntPtr hDC, int X, int Y, IntPtr hIcon);
+
+        [DllImport("user32.dll")]
+        public static extern bool BlockInput(bool fBlockIt);
     }
 }

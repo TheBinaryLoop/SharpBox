@@ -6,7 +6,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using EasyHook;
-using SharpBox.Core.IPC.Client;
 using SharpBox.Remote.PInvoke.Enums;
 using SharpBox.Remote.PInvoke.Librarys;
 using SharpBox.Remote.PInvoke.Structs;
@@ -172,6 +171,15 @@ namespace SharpBox.Remote
             // eventObjectNamechange = User32.SetWinEventHook(Constants.EVENT_OBJECT_NAMECHANGE, Constants.EVENT_OBJECT_NAMECHANGE, IntPtr.Zero, WinEventProc_Delegate, (UInt32)RemoteHooking.GetCurrentProcessId(), 0, Constants.WINEVENT_OUTOFCONTEXT);
 
             #endregion
+            #region Security
+
+            // BlockInput
+            var blockInput = LocalHook.Create(
+                LocalHook.GetProcAddress("user32.dll", "BlockInput"),
+                new BlockInput_Delegate(BlockInput_Hooked),
+                this);
+
+            #endregion
 
 
             #region FileSystem
@@ -206,6 +214,11 @@ namespace SharpBox.Remote
             //setWindowTextA.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             //setWindowTextW.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             drawIcon.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+
+            #endregion
+            #region Security
+
+            blockInput.ThreadACL.SetExclusiveACL(new Int32[]{ 0 });
 
             #endregion
 
@@ -283,6 +296,11 @@ namespace SharpBox.Remote
             #region WinEvent
 
             //User32.UnhookWinEvent(eventObjectNamechange);
+
+            #endregion
+            #region Security
+
+            blockInput.Dispose();
 
             #endregion
 
@@ -1469,22 +1487,22 @@ namespace SharpBox.Remote
                 //{
                 //lock (this._messageQueue)
                 //{
-                    //if (hWnd != IntPtr.Zero && !lpString.StartsWith("~SharpBoxed~"))
-                    //{
-                    //    string newText = $"~SharpBoxed~ {lpString}";
-                    //    this._messageQueue.Enqueue(
-                    //        string.Format("[{0}:{1}]: SETWINDOWTEXTA \"{2}\" CHANGED \"{3}\"",
-                    //        RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
-                    //        lpString, newText));
-                    //    lpString = newText;
-                    //}
-                    //else
-                    //{
-                        //this._messageQueue.Enqueue(
-                        //    string.Format("[{0}:{1}]: SETWINDOWTEXTA \"{2}\"",
-                        //    RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
-                        //    lpString));
-                    //}
+                //if (hWnd != IntPtr.Zero && !lpString.StartsWith("~SharpBoxed~"))
+                //{
+                //    string newText = $"~SharpBoxed~ {lpString}";
+                //    this._messageQueue.Enqueue(
+                //        string.Format("[{0}:{1}]: SETWINDOWTEXTA \"{2}\" CHANGED \"{3}\"",
+                //        RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                //        lpString, newText));
+                //    lpString = newText;
+                //}
+                //else
+                //{
+                //this._messageQueue.Enqueue(
+                //    string.Format("[{0}:{1}]: SETWINDOWTEXTA \"{2}\"",
+                //    RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                //    lpString));
+                //}
                 //}
                 //}
             }
@@ -1528,22 +1546,22 @@ namespace SharpBox.Remote
                 //{
                 //lock (this._messageQueue)
                 //{
-                    //if (hWnd != IntPtr.Zero && !lpString.StartsWith("~SharpBoxed~"))
-                    //{
-                    //    string newText = $"~SharpBoxed~ {lpString}";
-                    //    this._messageQueue.Enqueue(
-                    //        string.Format("[{0}:{1}]: SETWINDOWTEXTW \"{2}\" CHANGED \"{3}\"",
-                    //        RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
-                    //        lpString, newText));
-                    //    lpString = newText;
-                    //}
-                    //else
-                    //{
-                        //this._messageQueue.Enqueue(
-                        //    string.Format("[{0}:{1}]: SETWINDOWTEXTW \"{2}\"",
-                        //    RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
-                        //    lpString));
-                    //}
+                //if (hWnd != IntPtr.Zero && !lpString.StartsWith("~SharpBoxed~"))
+                //{
+                //    string newText = $"~SharpBoxed~ {lpString}";
+                //    this._messageQueue.Enqueue(
+                //        string.Format("[{0}:{1}]: SETWINDOWTEXTW \"{2}\" CHANGED \"{3}\"",
+                //        RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                //        lpString, newText));
+                //    lpString = newText;
+                //}
+                //else
+                //{
+                //this._messageQueue.Enqueue(
+                //    string.Format("[{0}:{1}]: SETWINDOWTEXTW \"{2}\"",
+                //    RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId(),
+                //    lpString));
+                //}
                 //}
                 //}
             }
@@ -1603,6 +1621,35 @@ namespace SharpBox.Remote
             }
             Interface.ReportMessage(string.Format("Text of hwnd changed {0:x8}", hWnd.ToInt32()));
         }
+
+        #endregion
+
+        #region Security
+
+        #region BlockInput
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Auto, SetLastError = true)]
+        delegate bool BlockInput_Delegate(bool fBlockIt);
+
+        bool BlockInput_Hooked(bool fBlockIt)
+        {
+            try
+            {
+                lock (this._messageQueue)
+                {
+                    this._messageQueue.Enqueue(
+                            string.Format("[{0}:{1}]: BLOCKINPUT CANCELED",
+                            RemoteHooking.GetCurrentProcessId(), RemoteHooking.GetCurrentThreadId()));
+                }
+            }
+            catch
+            {
+                // swallow exceptions so that any issues caused by this code do not crash target process
+            }
+            return true;
+        }
+
+        #endregion
 
         #endregion
 
